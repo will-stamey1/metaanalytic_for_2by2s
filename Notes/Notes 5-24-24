@@ -1,0 +1,4 @@
+1. make an option for logit of p1 to be normally distributed in the prior
+	- simulate some data sets and figure out when this works better than the beta. 
+2. use the model on historical studies to make priors for p1 and RR for a new study 
+	- use RBest to get parametric models from the mcmc data from the historic model - use this as the prior. 

@@ -1,0 +1,29 @@
+ 
+  model {
+   
+    # Prior
+    mu_p ~ dbeta(prior_p1mu_alpha, prior_p1mu_beta)
+    rho_p ~ dgamma(prior_p1rho_alpha, prior_p1rho_beta)
+      
+    p1_alpha <- mu_p*rho_p
+    p1_beta <- rho_p * (1 - mu_p)
+      
+    lnRR_mu ~ dnorm(prior_lnRRmu_mu, prior_lnRRmu_tau)
+    lnRR_tau ~ dunif(prior_lnRRtau_lo, prior_lnRRtau_hi)
+   
+    for(i in 1:nexp){  
+      p2[i] <- p1[i] * RR[i] 
+    }
+      
+    for(i in 1:nexp){
+      n1[i] ~ dbin(p1[i], n[i])
+      n11[i] ~ dbin(p2[i], n1[i])
+      
+      p1[i] ~ dbeta(p1_alpha, p1_beta)
+      
+      log(RR[i]) <- theta[i]
+      theta[i] ~ dnorm(lnRR_mu, lnRR_tau)
+    }
+  }
+  
+  
