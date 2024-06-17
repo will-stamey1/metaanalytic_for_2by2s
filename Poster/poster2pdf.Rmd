@@ -1,0 +1,106 @@
+---
+title: Generate Reproducible & Live HTML and PDF Conference Posters Using RMarkdown
+author:
+  - name: Bhargab Chattopadhyay
+    affil: 1
+  - name: Ken Kelley
+    affil: 2
+  - name: Will Stamey
+    affil: 2
+affiliation:
+  - num: 1
+    address: Indian Institute of Technology Jodhpur
+  - num: 2
+    address: Department of Information Technology, Analytics and Operations, University of Notre Dame
+column_numbers: 3
+
+output: 
+  iheiddown::iheiddown_poster:
+    self_contained: false
+bibliography: packages.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r libraries, include = F}
+library(tidyverse)
+```
+
+# Introduction
+
+In some experimental settings, new samples can be drawn in an agile manner such that drawing an additional sample from a population (such as treatment or control group) can be easily done incrementally. Such strategies, known as Sequential testing methods, can be far more cost efficient, as fixed sample size planning is not required, and so the resulting sample size for sequential methods are often smaller. 
+The procedure proposed here is a sequential method for determining the best of K treatments/populations, where there is also a standard, or incumbent treatment. This procedure assumes that all treatments have the same variance. We propose that this method would be particularly useful in digital experimentation where sampling a single unit for a given treatment is highly agile, and experimenters have strong knowledge of the baseline effect for the incumbent, currently in-use treatment. 
+
+## Contents
+
+1. Determining Stopping Rule Parameters ($h_1$, $h_2$, $d_1$ and $d_2$)
+2. Sequential Procedure Step-By-Step
+3. Simulations to Validate and Test the Procedure
+
+# Determining Stopping Rule Parameters
+
+Type I and II errors of the procedure are adjusted depending on the stopping rule, an expression of sample size (number of samples drawn so far), sample variance, and four parameters, $h_1$, $h_2$, $d_1$ and $d_2$. The system of equations below expresses the relationship between Type I and II errors and these four parameters.
+
+$$\begin{equation} \int_{h_1 \left( 1 - \frac{\psi_2}{d_1}\right)}^{\infty} \Phi^{K-1}\left(t + \frac{h_1(\psi_2 - \psi_1)}{d_1}\right)\Phi\left(\frac{h_2 d_1}{h_1 d_2}t - 2h_2 + 2\frac{h_2\psi_2}{d_2}\right)\phi(t)dt \\ = 1 - \beta \\ K\int_{h_1}^\infty \Phi^{K-1}(t)\Phi\left(\frac{h_2d_1}{h_1d_2}t - 2h_2\right)\phi(t)dt = \alpha \end{equation}$$
+
+![](Simulation/plot loss pics/topo_grid_solution.png)
+
+Where $K$ is the number of alternative treatments/populations, while $\psi_2$ is the effect size of substance above $\mu_0$, and $\psi_1$ is a marginal effect size above $\mu_0$, both specified by the researcher. 
+
+Given $\alpha$, $\beta$, $\psi_1$ and $\psi_2$ are set by the researchers, the system has four unknowns. Solving it then requires setting two of the unknowns constant ($d_1$ and $d_2$) and then solving for the other two, $h_1$ and $h_2$, via a nonlinear optimization procedure. The R package NLEQSLV was used to accomplish this. The $d_1$ and $d_2$ values can theoretically be arbitrary positive numbers, but for a given set of researcher-chosen parameters, some values of $d_1$ and $d_2$ solve more easily than others.
+
+# Procedure 
+
+The sequential procedure takes place in two phases, each comprising a statistical test. In the first, a test determines whether one of the treatment sample means is significantly greater than the others. If the first test is rejected and it appears there is a greatest treatment, then in the second that population set apart is tested against $\mu_0 + \psi_2$. If the null hypothesis of the second test is rejected, then the treatment selected in the first phase is considered to be the greatest. Otherwise, no best treatment is selected. 
+
+## Hypotheses: 
+
+$$\begin{equation}
+  H_0: \mu_1 = \mu_2 = ... = \mu_K = \mu_0 \\
+  H_a: \text{there is at least one acceptable population, and no } \\ \mu_i \text{ lies in the interval } (\mu_0 + \psi_1, \mu_0 + \psi_2)
+\end{equation}$$
+
+## Procedure Steps: 
+
+### Phase 1: Isolate Best Procedure
+ 1. Sample $n_0 = max \{3, \lceil \frac{h_1}{d_1} \rceil \}$ from each of the K populations.
+ 2. Estimate $\sigma^2$ using $n_0$.
+ 3. Set $N = n_0$. While $N < \frac{h_1^2}{d_1^2}(s^2_{N} + 1/N)$, increase N by $n'$ samples (such that each population is sample $n'$ additional times). Once $N \geq \frac{h_1^2}{d_1^2}(s^2_{N} + 1/N)$, stop sampling. 
+ 4. Compute weighted average. If the greatest population sample mean, $\bar{X}_{KN} \geq \mu_0 + d_1$, then proceed to phase 2. Otherwise, end procedure and fail to reject null hypothesis. 
+
+### Phase 2: Show Significant Improvement of Best Procedure
+5. Sample $m_0 =  max \{3, \lceil \frac{h_2}{d_2} \rceil \}$ from the population selected in Phase 2. 
+6. Estimate $\sigma^2$ using $m_0$, $s^2_{m_0}$. 
+7. Set $M = m_0$. While $M < \frac{h_2^2}{d_2^2}(s^2_{M} + 1/M)$, increase $M$ by $m'$ samples. 
+8. Once $M \geq \frac{h_2^2}{d_2^2}(s^2_{M} + 1/M)$, calculate weighted mean of the $M$ samples, $\bar{Y}_M$.
+9. If $\frac{\bar{X}_{(KN)} + \bar{Y}_M}{2} \geq \mu0 + d2$ then reject $H_0$, and the treatment selected in phase one is the best. Else, fail to reject $H_0$ and select no best population. 
+
+### Weighted Average of ith Treatment: 
+$$\begin{equation}
+  \bar{X}_N = \sum_{j=1}^Ma_jX_j \\
+  a_{i1} = a_{i2} = \frac{c_1}{2}, a_{i3} = a_{i4} = ... = a_{iN} = \frac{1-c_1}{N-2} \\
+  c_1 = 1 - \frac{N-2}{N}\left(1 + \sqrt{1 - \frac{N}{N-2} \left( 1 - \frac{2d_1^2}{s^2_Nh_1^2}\right)}\right)
+\end{equation}$$
+
+# Simulations
+
+```{r mytable, message=FALSE, warning=FALSE, out.width='80%'}
+sim_table <- read_csv("Simulation/var_effect_table2.csv")
+
+sim_table_subset <- sim_table %>% select(d1, d2, psi1, psi2, K, alpha, beta, h1, h2, Procedure_Alpha, Procedure_Power) %>% mutate(across(where(is.numeric), round, 2)) %>% rename(Emp.Alpha = Procedure_Alpha, Emp.Power = Procedure_Power)
+
+knitr::kable(sim_table_subset, align = 'c',"html")
+```
+
+
+# Next Steps
+
+Now that it has been demonstrated that the empirical Type I and Type II error rates are in the ballpark of the ideal rates, further analysis should be performed to examine the importance of the assumptions. For example, simulations should be run where the data-generating distributions differ from normal distributions. We will examine the impact of using gamma, [list] and others. Additionally, this procedure will be implemented into a user-friendly R package for practitioner use. 
+
+```{r, include=FALSE}
+knitr::write_bib(c('knitr','rmarkdown','iheiddown','pagedown', 'posterdown'), 'packages.bib')
+```
+
+# References

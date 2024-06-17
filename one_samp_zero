@@ -9,7 +9,8 @@
     p1_beta <- rho_p * (1 - mu_p)
       
     lnRR_mu ~ dnorm(prior_lnRRmu_mu, prior_lnRRmu_tau)
-    lnRR_tau ~ dunif(prior_lnRRtau_lo, prior_lnRRtau_hi)
+    lnRR_sig ~ dunif(prior_lnRRtau_lo, prior_lnRRtau_hi)
+    lnRR_tau <- 1/(lnRR_sig*lnRR_sig)
    
     for(i in 1:nexp){  
       p2[i] <- p1[i] * RR[i] 
@@ -19,10 +20,13 @@
       n1[i] ~ dbin(p1[i], n[i])
       n11[i] ~ dbin(p2[i], n1[i])
       
-      p1[i] ~ dbeta(p1_alpha, p1_beta)
+      theta1[i] ~ dbeta(p1_alpha, p1_beta)
+      invRR[i] <- 1/RR[i]
+      upbound[i] <- min(1, invRR[i])  
+      p1[i] <- theta1[i] * upbound[i]
       
-      log(RR[i]) <- theta[i]
-      theta[i] ~ dnorm(lnRR_mu, lnRR_tau)
+      log(RR[i]) <- theta2[i]
+      theta2[i] ~ dnorm(lnRR_mu, lnRR_tau)
     }
   }
   
