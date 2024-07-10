@@ -1,5 +1,5 @@
 ---
-title: Meta-Analytic Prior for 2 X 2s with Structural Holes
+title: Meta-Analytic Prior for Test Sequences #2 X 2s with Structural Zeros
 author:
   - name: James Stamey
     affil: 1
@@ -15,7 +15,13 @@ column_numbers: 3
 output: 
   iheiddown::iheiddown_poster:
     self_contained: false
-bibliography: packages.bib
+bibliography: bib.bib
+
+nocite: |
+  @wang2024
+  
+header-includes:
+  - \usepackage{amssymb}
 ---
 
 ```{r setup, include=FALSE}
@@ -28,75 +34,85 @@ library(tidyverse)
 
 # Introduction
 
+What do we do with histories of analyses and experiments? Meta-analytic Priors (MAPs) are a powerful answer to this question, leveraging Bayesian statistical methods to incorporate past analyses into the design and strengthen the results of future experiments. 
+
+2 x 2s with structural zeros are a kind of two-part binary test sequence where the result of the first test determines whether an individual is tested once more. Here, we apply a MAP to analyze the Risk Ratio in a new experiment which is of primary interest in 2 x 2s with structural zeros. 
 
 ## Sections
 
-1. Bayesian Model
-2. Experiment Example
-3. Simulations to Validate the Procedure
+1. 2 x 2s With Structural Zeros
+2. Bayesian Model
+3. Experiment Example
+4. Simulations to Validate the Procedure
 
-# Determining Stopping Rule Parameters
+# 2 x 2s With a Structural Zero
 
-Type I and II errors of the procedure are adjusted depending on the stopping rule, an expression of sample size (number of samples drawn so far), sample variance, and four parameters, $h_1$, $h_2$, $d_1$ and $d_2$. The system of equations below expresses the relationship between Type I and II errors and these four parameters.
+A 2 x 2 with a structural zero is a sequence of two tests. For experiment $i$ on $n_i$ participants, the cumulative results of the tests are characterized by a trinomial distribution
 
-$$\begin{equation} \int_{h_1 \left( 1 - \frac{\psi_2}{d_1}\right)}^{\infty} \Phi^{K-1}\left(t + \frac{h_1(\psi_2 - \psi_1)}{d_1}\right)\Phi\left(\frac{h_2 d_1}{h_1 d_2}t - 2h_2 + 2\frac{h_2\psi_2}{d_2}\right)\phi(t)dt \\ = 1 - \beta \\ K\int_{h_1}^\infty \Phi^{K-1}(t)\Phi\left(\frac{h_2d_1}{h_1d_2}t - 2h_2\right)\phi(t)dt = \alpha \end{equation}$$
+\begin{equation}
+    z_i \sim \text{trinomial}(n_i, \mathbf{p}_i)
+    \label{eq:trinom}
+\end{equation}
 
-![](Simulation/plot loss pics/topo_grid_solution.png)
+where $\mathbf{p}_i = \{\pi_{1i}, \pi_{12i}\}$. Since administration of the second test is dependent on the result of the first, 
 
-Where $K$ is the number of alternative treatments/populations, while $\psi_2$ is the effect size of substance above $\mu_0$, and $\psi_1$ is a marginal effect size above $\mu_0$, both specified by the researcher. 
+# Bayesian Model 
+$$
+\begin{aligned} 
+  y_{11}, y_{12}, y_{22} \; \sim \; &\text{Trinomial}(n, p_{11}, p_{12}, p_{22}) \\
+  \\
+  p_{1} = p_{11} &\; + \; p_{12}, \;\;\;  RR = \frac{p_{11}}{p_1^2}
+  
+\end{aligned}
+$$
 
-Given $\alpha$, $\beta$, $\psi_1$ and $\psi_2$ are set by the researchers, the system has four unknowns. Solving it then requires setting two of the unknowns constant ($d_1$ and $d_2$) and then solving for the other two, $h_1$ and $h_2$, via a nonlinear optimization procedure. The R package NLEQSLV was used to accomplish this. The $d_1$ and $d_2$ values can theoretically be arbitrary positive numbers, but for a given set of researcher-chosen parameters, some values of $d_1$ and $d_2$ solve more easily than others.
 
-# Procedure 
+## (Hierarchical Model Plot)
 
-The sequential procedure takes place in two phases, each comprising a statistical test. In the first, a test determines whether one of the treatment sample means is significantly greater than the others. If the first test is rejected and it appears there is a greatest treatment, then in the second that population set apart is tested against $\mu_0 + \psi_2$. If the null hypothesis of the second test is rejected, then the treatment selected in the first phase is considered to be the greatest. Otherwise, no best treatment is selected. 
+$$ \theta_i = \{P_{1i}, RR_i\}$$
 
-## Hypotheses: 
+$$y_i \sim \text{Trinomial}(\theta_i)$$
 
-$$\begin{equation}
-  H_0: \mu_1 = \mu_2 = ... = \mu_K = \mu_0 \\
-  H_a: \text{there is at least one acceptable population, and no } \\ \mu_i \text{ lies in the interval } (\mu_0 + \psi_1, \mu_0 + \psi_2)
-\end{equation}$$
+$$ \text{ln}(RR_i) \; \sim \; N(\mu_{RR}, \sigma_{RR}) $$
+
+$$ p_{1i} \sim \text{beta}(a, b) $$
+
+$$ \mu_p = \frac{a}{a + b}, \;\; \rho_p = a + b$$
+
+## Priors
+$$
+\begin{aligned}
+  \mu_{RR} \; \sim \; N(0, 0.1), &\;\;\;\;\;\sigma_{RR} \sim \text{half}N(0, 1) \\ 
+  \mu_p \sim \text{beta}(1, 1), &\;\;\;\;\; \rho_p \sim \text{Gamma}(0.1, 0.1)
+\end{aligned}
+$$
+
+# Experiment Example 
+
+Use a history of 10 studies FILL IN SUBJECT in similar settings MAYBE MORE SPECIFIC.  
+
+
+
 
 ## Procedure Steps: 
 
-### Phase 1: Isolate Best Procedure
- 1. Sample $n_0 = max \{3, \lceil \frac{h_1}{d_1} \rceil \}$ from each of the K populations.
- 2. Estimate $\sigma^2$ using $n_0$.
- 3. Set $N = n_0$. While $N < \frac{h_1^2}{d_1^2}(s^2_{N} + 1/N)$, increase N by $n'$ samples (such that each population is sample $n'$ additional times). Once $N \geq \frac{h_1^2}{d_1^2}(s^2_{N} + 1/N)$, stop sampling. 
- 4. Compute weighted average. If the greatest population sample mean, $\bar{X}_{KN} \geq \mu_0 + d_1$, then proceed to phase 2. Otherwise, end procedure and fail to reject null hypothesis. 
 
-### Phase 2: Show Significant Improvement of Best Procedure
-5. Sample $m_0 =  max \{3, \lceil \frac{h_2}{d_2} \rceil \}$ from the population selected in Phase 2. 
-6. Estimate $\sigma^2$ using $m_0$, $s^2_{m_0}$. 
-7. Set $M = m_0$. While $M < \frac{h_2^2}{d_2^2}(s^2_{M} + 1/M)$, increase $M$ by $m'$ samples. 
-8. Once $M \geq \frac{h_2^2}{d_2^2}(s^2_{M} + 1/M)$, calculate weighted mean of the $M$ samples, $\bar{Y}_M$.
-9. If $\frac{\bar{X}_{(KN)} + \bar{Y}_M}{2} \geq \mu0 + d2$ then reject $H_0$, and the treatment selected in phase one is the best. Else, fail to reject $H_0$ and select no best population. 
-
-### Weighted Average of ith Treatment: 
-$$\begin{equation}
-  \bar{X}_N = \sum_{j=1}^Ma_jX_j \\
-  a_{i1} = a_{i2} = \frac{c_1}{2}, a_{i3} = a_{i4} = ... = a_{iN} = \frac{1-c_1}{N-2} \\
-  c_1 = 1 - \frac{N-2}{N}\left(1 + \sqrt{1 - \frac{N}{N-2} \left( 1 - \frac{2d_1^2}{s^2_Nh_1^2}\right)}\right)
-\end{equation}$$
 
 # Simulations
-
-```{r mytable, message=FALSE, warning=FALSE, out.width='80%'}
-sim_table <- read_csv("Simulation/var_effect_table2.csv")
-
-sim_table_subset <- sim_table %>% select(d1, d2, psi1, psi2, K, alpha, beta, h1, h2, Procedure_Alpha, Procedure_Power) %>% mutate(across(where(is.numeric), round, 2)) %>% rename(Emp.Alpha = Procedure_Alpha, Emp.Power = Procedure_Power)
-
-knitr::kable(sim_table_subset[5:8,], align = 'c',"html")
+More text here
+```{r mytable, message=T, warning=FALSE, out.width='80%'}
+knitr::include_graphics("RRpriors.jpg")
 ```
+
+and more text here
 
 
 # Next Steps
 
 
-```{r, include=FALSE}
-knitr::write_bib(c('knitr','rmarkdown','iheiddown','pagedown', 'posterdown'), 'packages.bib')
-```
 
 # References
 
+```{r, include=FALSE}
+knitr::write_bib(c('knitr','rmarkdown','iheiddown','pagedown', 'posterdown'), 'bib. bib')
+```

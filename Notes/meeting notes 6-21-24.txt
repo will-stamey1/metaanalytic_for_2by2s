@@ -1,0 +1,10 @@
+
+3 X 3 figure grid for prior distributions
+sigma_b = 0.1, 0.2, 0.3
+sample size = 30, 100, 300 
+
+posterior summary statistics: 
+
+mean of RR, p1
+coverage rate for each 
+some measure of variability. 

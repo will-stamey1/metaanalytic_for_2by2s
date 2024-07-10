@@ -15,7 +15,18 @@
     for(i in 1:nexp){  
       p2[i] <- p1[i] * RR[i] 
     }
+    p2.new <- p1.new * RR.new
       
+    # New Study Data #########
+    n1.new ~ dbin(p1.new, n.new)
+    n11.new ~ dbin(p2.new, n1.new)
+    
+    p1.new ~ dbeta(p1_alpha, p1_beta)
+      
+    theta.new ~ dnorm(lnRR_mu, lnRR_tau)
+    log(RR.new) <- theta.new
+      
+    # Historic Data #########
     for(i in 1:nexp){
       n1[i] ~ dbin(p1[i], n[i])
       n11[i] ~ dbin(p2[i], n1[i])
@@ -24,9 +35,9 @@
       invRR[i] <- 1/RR[i]
       upbound[i] <- min(1, invRR[i])  
       p1[i] <- theta1[i] * upbound[i]
-      
-      log(RR[i]) <- theta2[i]
-      theta2[i] ~ dnorm(lnRR_mu, lnRR_tau)
+
+      log(RR[i]) <- theta[i]
+      theta[i] ~ dnorm(lnRR_mu, lnRR_tau)
     }
   }
   
