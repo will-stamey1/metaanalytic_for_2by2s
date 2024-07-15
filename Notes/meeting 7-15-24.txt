@@ -1,0 +1,17 @@
+Simulation Tables
+
+Table 1: Hierarchical Model Fit
+
+	Avg of posterior means and a measure of variation (probably interval width) and coverage rate for 
+		1. lnRRmu
+		2. lnRRsig
+		3. p1_mu
+		4. p1_rho
+		
+	Study level parameters: 
+		pct bias and coverage across study and simulation
+
+
+Table 2: Prior precision
+   2.5 percentile, mean, 97.5 percentile
+	
