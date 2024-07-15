@@ -15,3 +15,4 @@ Table 1: Hierarchical Model Fit
 Table 2: Prior precision
    2.5 percentile, mean, 97.5 percentile
 	
+	

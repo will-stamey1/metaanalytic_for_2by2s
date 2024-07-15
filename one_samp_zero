@@ -25,7 +25,7 @@
       
     theta.new ~ dnorm(lnRR_mu, lnRR_tau)
     log(RR.new) <- theta.new
-      
+    
     # Historic Data #########
     for(i in 1:nexp){
       n1[i] ~ dbin(p1[i], n[i])
