@@ -1,0 +1,21 @@
+ 
+model {
+ 
+  # Prior
+  
+  p1 ~ dbeta(1, 1)
+  RR ~ dgamma(.1, .1)
+ 
+  p2 <- p1 * RR
+    
+  # likelihood
+  n1 ~ dbin(p1, n)
+  n11 ~ dbin(p2, n1)
+  
+  test <- RR - 1
+  
+  p.value <- 1 - step(test)
+
+ 
+}
+

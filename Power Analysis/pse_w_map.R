@@ -1,6 +1,5 @@
-# MAP just the model 
+# Probability of Successful Experiment Using MAP as Design Prior
 
-# Load required libraries
 library(rjags)
 library(bayesplot)
 library(ggplot2)
@@ -11,7 +10,7 @@ theme_set(theme_classic())
 # Set seed 
 set.seed(1234)
 
-#  JAGS model
+#  MAP JAGS model
 cat(" 
 model {
  
@@ -34,10 +33,13 @@ model {
   n1new ~ dbin(p1new, n[nexp + 1])
   n11new ~ dbin(p2new, n1new)
   
-  p1new ~ dbeta(p1_alpha, p1_beta)
-
   thetanew ~ dnorm(lnRR_mu, lnRR_tau)
   log(RRnew) <- thetanew
+
+  theta2 ~ dbeta(p1_alpha, p1_beta)
+  invRRnew <- 1/RRnew
+  upboundnew <- min(1, invRRnew)
+  p1new <- theta2 * upboundnew
 
   # Historic Data #########
   for(i in 1:nexp){
@@ -54,7 +56,7 @@ model {
   }
 }
 
-", file = "one_samp_zero")
+", file = "map_hier")
 
 # PARAMETERS AND DATA INIT. ##########################
 
@@ -102,7 +104,7 @@ for(i in 1:iter){
   data <- list(n = n, nexp = nexp, n1 = n1, n11 = n11)
   
   # Compile
-  jm <- jags.model("one_samp_zero", data = data)
+  jm <- jags.model("map_hier", data = data)
   
   # Burnin
   samps <- update(jm, 5000)
@@ -125,29 +127,81 @@ for(i in 1:iter){
   output[i,]$newp1CIlen <- stuff$quantiles["p1new", 5] - stuff$quantiles["p1new", 1]
 }
 
-mean(output1[,1])
-mean(output1[,2])
-mean(output1[,3])
+# get the simulated distributions of RR* and p1*:
+RRstar <- samps[[1]][, "RRnew"]
+p1star <- samps[[1]][, "p1new"]
 
-# Plot the priors on RR and P1 for the new experiment #############################
+# Probability of Success JAGS model
+cat(" 
+model {
+ 
+  # Prior
+  
+  p1 ~ dbeta(1, 1)
+  RR ~ dgamma(.1, .1)
+ 
+  p2 <- p1 * RR
+    
+  # likelihood
+  n1 ~ dbin(p1, n)
+  n11 ~ dbin(p2, n1)
+  
+  test <- RR - 1
+  
+  p.value <- 1 - step(test)
 
-gdat <- data.frame(samps[[1]][,"RRnew"],
-                   samps[[1]][,"p1new"])
-colnames(gdat) <- c("RR", "p1")
+ 
+}
 
-# RR
-bayesplot::mcmc_trace(samps, pars = "RRnew")
-bayesplot::mcmc_hist(samps, pars = "RRnew", binwidth = 0.5)
+", file = "one_samp_noninf")
 
-gdat %>% ggplot(aes(x = RR)) + 
-  geom_histogram(binwidth = 0.05) + 
-  scale_x_continuous(limits = c(0, 6))
 
-# P1
-samps[[1]][,"p1new"]
-bayesplot::mcmc_trace(samps, pars = "p1new")
-bayesplot::mcmc_hist(samps, pars = "p1new", binwidth = 0.01)
+# Get size of generated empirical distributions:
+B <- length(RRstar)
 
-gdat %>% ggplot(aes(x = p1)) + 
-  geom_histogram(binwidth = 0.01) + 
-  scale_x_continuous(limits = c(0, 1))
+# Size of new experiment: 
+n <- 500
+
+# store results
+results <- vector("numeric", B)
+
+# iterate through logRRs and P1s from MAP simulation: 
+for(i in 1:B){
+  
+  # Design prior:
+  
+  # get ith rr and ith p1:
+  p1 <- p1star[i]
+  rr <- RRstar[i]
+
+  p2 <- p1 * rr
+  n1 <- rbinom(1, n, p1)
+  n11 <- rbinom(1, n1, p2)
+  print(paste0("p1: ", p1))
+  print(paste0("n1: ", n1))
+  print(paste0("p2: ", p2))
+  print(paste0("n11: ", n11))
+  print(paste0("RR: ", rr))
+  data <- list("n" = n, "n1" = n1, "n11" = n11)
+  
+  inits <- list(RR = 1, p1 = .5)
+  
+  jm <- jags.model("one_samp_noninf", data = data, inits = inits)
+  samps <- update(jm, 2000)
+  
+  samps <- coda.samples(jm, variable.names = c("p.value"),  n.iter = 10000)
+  
+  stuff <- summary(samps)
+  
+  results[i] <- (stuff$statistics[1]>.95)
+  
+  rm(stuff)
+  rm(samps)
+  rm(jm)
+}
+
+
+mean(results)
+
+
+
