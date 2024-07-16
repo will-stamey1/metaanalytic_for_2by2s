@@ -228,9 +228,9 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
 
 # Plot the priors on RR and P1 for the new experiment #############################
 
-RRsds <- c(0.1)#c(0.05, 0.1, 0.2)
+RRsds <- c(0.05, 0.1, 0.2)
 #RRsds <- c(0.3)
-Ns <- c(100)#c(30, 100, 300)
+Ns <- c(30, 100, 300)
 
 # overall log RR: 
 lnRRmu <- log(0.7)
