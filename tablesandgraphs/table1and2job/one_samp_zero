@@ -1,0 +1,44 @@
+ 
+  model {
+   
+    # Prior
+    mu_p ~ dbeta(prior_p1mu_alpha, prior_p1mu_beta)
+    rho_p ~ dgamma(prior_p1rho_alpha, prior_p1rho_beta)
+      
+    p1_alpha <- mu_p*rho_p
+    p1_beta <- rho_p * (1 - mu_p)
+      
+    lnRR_mu ~ dnorm(prior_lnRRmu_mu, prior_lnRRmu_tau)
+    lnRR_sig ~ dunif(prior_lnRRtau_lo, prior_lnRRtau_hi)
+    lnRR_tau <- 1/(lnRR_sig*lnRR_sig)
+   
+    for(i in 1:nexp){  
+      p2[i] <- p1[i] * RR[i] 
+    }
+    p2.new <- p1.new * RR.new
+      
+    # New Study Data #########
+    n1.new ~ dbin(p1.new, n.new)
+    n11.new ~ dbin(p2.new, n1.new)
+    
+    p1.new ~ dbeta(p1_alpha, p1_beta)
+      
+    theta.new ~ dnorm(lnRR_mu, lnRR_tau)
+    log(RR.new) <- theta.new
+    
+    # Historic Data #########
+    for(i in 1:nexp){
+      n1[i] ~ dbin(p1[i], n[i])
+      n11[i] ~ dbin(p2[i], n1[i])
+      
+      theta1[i] ~ dbeta(p1_alpha, p1_beta)
+      invRR[i] <- 1/RR[i]
+      upbound[i] <- min(1, invRR[i])  
+      p1[i] <- theta1[i] * upbound[i]
+
+      log(RR[i]) <- theta[i]
+      theta[i] ~ dnorm(lnRR_mu, lnRR_tau)
+    }
+  }
+  
+  

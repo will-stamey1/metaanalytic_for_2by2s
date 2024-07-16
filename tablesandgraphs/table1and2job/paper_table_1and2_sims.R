@@ -228,9 +228,9 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
 
 # Plot the priors on RR and P1 for the new experiment #############################
 
-RRsds <- c(0.05, 0.1, 0.2)
+RRsds <- c(0.1)#c(0.05, 0.1, 0.2)
 #RRsds <- c(0.3)
-Ns <- c(30, 100, 300)
+Ns <- c(100)#c(30, 100, 300)
 
 # overall log RR: 
 lnRRmu <- log(0.7)
@@ -245,32 +245,20 @@ ess.logRR <- expand.grid(RRsds, Ns)
 colnames(ess.logRR) <- c('sd', 'n')
 ess.logRR$ess <- NA
 
+t0 <- Sys.time()
+
 for(sd in RRsds){
   for(N in Ns){
     out <- map_paper_sims(lnRRs = lnRRs, p1s = p1s, n = N, 
-                         lnRRsd = sd, lnRR_mu = lnRRmu, return_samps = T, iter = 1, 
+                         lnRRsd = sd, lnRR_mu = lnRRmu, return_samps = F, iter = 1000, 
                          return_counts = F, p1_true_mu = 0.4, p1_true_rho = 20)
     
     nexp <- length(lnRRs)
     
-    samps <- out[[2]]
-    
-    nextdat <- data.frame(samps[,"RR.new"],
-                          samps[,"p1.new"])
-    
-    colnames(nextdat) <- c("RR", "p1")
-    
-    #n11 <- out[[3]]$n11
-    
-    nextdat$sd <- sd
-    nextdat$n <- N
-    nextdat$p11hat <- sum(n11)/(nexp * N)
-    nextdat$varhat <- (1 - nextdat$p11hat)/nextdat$p11hat
-    
     if(sd == RRsds[1] & N == Ns[1]){
-      gdat <- nextdat
+      gdat <- out
     }else{
-      gdat <- bind_rows(gdat, nextdat)
+      gdat <- bind_rows(gdat, out)
     }
     
     # ESS: record effective sample size for RR distributions:
@@ -280,3 +268,8 @@ for(sd in RRsds){
     # ess.logRR[ess.logRR[,'n']==N & ess.logRR[,'sd']==sd,'ess'] <- ess(fit, sigma = 1)
   }
 }
+
+write.csv(gdat, "tblresults.csv")
+
+print(Sys.time() - t0)
+Sys.time() - t0
