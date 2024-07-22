@@ -80,30 +80,39 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
     lnRR_sig ~ dunif(prior_lnRRtau_lo, prior_lnRRtau_hi)
     lnRR_tau <- 1/(lnRR_sig*lnRR_sig)
    
-    for(i in 1:nexp){  
-      p2[i] <- p1[i] * RR[i] 
-    }
-    p2.new <- p1.new * RR.new
+    # for(i in 1:nexp){
+    #   p11[i] <- p1plus[i] * p1plus[i] * RR[i]
+    # }
+    p11.new <- p1plus.new * p1plus.new * RR.new
       
     # New Study Data #########
-    n1.new ~ dbin(p1.new, n.new)
-    n11.new ~ dbin(p2.new, n1.new)
-    
-    p1.new ~ dbeta(p1_alpha, p1_beta)
+    p12.new <- p1plus.new - p11.new
+    p22.new <- 1 - p1plus.new
+    psnew[1] <- p11.new
+    psnew[2] <- p12.new
+    psnew[3] <- p22.new
+    z.new ~ dmulti(ps, n.new)
+
+    p1plus.new ~ dbeta(p1_alpha, p1_beta)
       
     theta.new ~ dnorm(lnRR_mu, lnRR_tau)
     log(RR.new) <- theta.new
     
     # Historic Data #########
     for(i in 1:nexp){
-      n1[i] ~ dbin(p1[i], n[i])
-      n11[i] ~ dbin(p2[i], n1[i])
-      
+      ps[i,1] <- p11[i]
+      ps[i,2] <- p12[i]
+      ps[i,3] <- p22[i]
+      z[i,1:3] ~ dmulti(ps[i,],n)
+      p11[i]<- RR[i]*pow(p1plus[i],2)
+	    p12[i]<- p1plus[i] - RR[i]*pow(p1plus[i],2)
+	    p22[i]<- 1 - p1plus[i]
+
       theta1[i] ~ dbeta(p1_alpha, p1_beta)
       invRR[i] <- 1/RR[i]
-      upbound[i] <- min(1, invRR[i])  
-      p1[i] <- theta1[i] * upbound[i]
-
+      upbound[i] <- min(1, invRR[i])
+      p1plus[i] <- theta1[i] * upbound[i]
+      
       log(RR[i]) <- theta[i]
       theta[i] ~ dnorm(lnRR_mu, lnRR_tau)
     }
@@ -128,24 +137,43 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
   # 12. rhop_covr: coverage of p1 rho true value. . 
   # 13. RRindivcovr: coverage rate for experiment RR means
   # 14. p1indivcovr: coverage rate for experiment p1 means
-  output <- data.frame(matrix(NA, iter, 23))
+  output <- data.frame(matrix(NA, iter, 21))
   colnames(output) <- c("lnRRmu_mean", "lnRRmu_CIlen", "lnRRmu_covr", 
                         "lnRRsd_mean", "lnRRsd_CIlen", "lnRRsd_covr",
                         "mup_mean", "mup_CIlen", "mup_covr", 
                         "rhop_mean", "rhop_CIlen", "rhop_covr",
                         "RRindivcovr", "RRavgpctbias", "p1indivcovr", "p1avgpctbias",
-                        "newRR", "newRR2point5", "newRR97point5", "newRRCIlen", 
+                        "newRR", "newRRCIlen", 
                         "newp1", "newp1CIlen", "pi11hat")
   
   for(i in 1:iter){
     
     # Generate data: 
-    n1 <- rbinom(nexp, n, prob = p1s)
-    n11 <- rbinom(nexp, n1, prob = (p1s * exp(lnRRs))) 
+    #n1 <- rbinom(nexp, n, prob = p1s)
+    #n11 <- rbinom(nexp, n1, prob = (p1s * exp(lnRRs))) 
+    rrs <- exp(lnRRs)
+    # p1s <- pmin(p1s, 1/rrs) # this seems like it would lead to bunching at 1/rr. Maybe this doesnt matter. 
+    p1s <- p1s * pmin(1, 1/rrs) # TRYING THIS OUT: 
+    
+    # generate probabilities for each experiment: 
+    p11 <- rrs*p1s^2
+    p12 <- p1s - rrs*p1s^2
+    p22 <- 1 - p1s
+    
+    p <- cbind(p11, p12, p22)
+    
+    # generate counts: 
+    z <- matrix(nrow = nexp, ncol = 3)
+    #colnames(z) <- colnames(p)
+    for(i in 1:nrow(p)){
+      pi <- p[i,]
+      
+      z[i,] <- as.numeric(rmultinom(1, n, pi))
+    }
     
     # Define data for JAGS
-    data <- list(n = n, nexp = nexp, n1 = n1, n11 = n11, 
-                 n.new = 0, n1.new = 0, n11.new = 0,
+    data <- list(n = n, nexp = nexp, z = z, 
+                 n.new = NA, n1.new = NA, n11.new = NA,
                  prior_p1mu_alpha = prior_p1mu_alpha, prior_p1mu_beta = prior_p1mu_beta, 
                  prior_p1rho_alpha = prior_p1rho_alpha, prior_p1rho_beta = prior_p1rho_beta,
                  prior_lnRRmu_mu = prior_lnRRmu_mu, prior_lnRRmu_tau = prior_lnRRmu_tau,
@@ -166,7 +194,7 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
     if(i == 1){
       total_samps = samps[[1]]
     }else{
-      total_samps = total_samps + samps[[1]] 
+      total_samps = total_samps + samps[[1]]
     }
     
     stuff <- summary(samps)
@@ -247,10 +275,10 @@ ess.logRR$ess <- NA
 
 t0 <- Sys.time()
 
-for(sd in RRsds){
+for(sdev in RRsds){
   for(N in Ns){
     out <- map_paper_sims(lnRRs = lnRRs, p1s = p1s, n = N, 
-                         lnRRsd = sd, lnRR_mu = lnRRmu, return_samps = T, iter = 250, 
+                         lnRRsd = sdev, lnRR_mu = lnRRmu, return_samps = T, iter = 1, 
                          return_counts = F, p1_true_mu = 0.4, p1_true_rho = 20)
     
     nexp <- length(lnRRs)
@@ -264,12 +292,12 @@ for(sd in RRsds){
     
     #n11 <- out[[3]]$n11
     
-    nextdat$sd <- sd
+    nextdat$sd <- sdev
     nextdat$n <- N
     nextdat$p11hat <- sum(n11)/(nexp * N)
     nextdat$varhat <- (1 - nextdat$p11hat)/nextdat$p11hat
     
-    if(sd == RRsds[1] & N == Ns[1]){
+    if(sdev == RRsds[1] & N == Ns[1]){
       gdat <- nextdat
     }else{
       gdat <- bind_rows(gdat, nextdat)
