@@ -34,7 +34,7 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
   }
   
   prior_p1mu_alpha = 1; prior_p1mu_beta = 1; 
-  prior_p1rho_alpha = .1; prior_p1rho_beta = .1; prior_lnRRmu_mu = 0; 
+  prior_p1rho_alpha = 1; prior_p1rho_beta = .1; prior_lnRRmu_mu = 0; 
   prior_lnRRmu_tau = .01; prior_lnRRtau_lo = 0; prior_lnRRtau_hi = 2;
   
   nexp <- length(lnRRs)
