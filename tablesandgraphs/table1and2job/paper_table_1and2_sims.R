@@ -255,6 +255,9 @@ for(sd in RRsds){
     
     nexp <- length(lnRRs)
     
+    out$sd <- sd
+    out$N <- N
+    
     if(sd == RRsds[1] & N == Ns[1]){
       gdat <- out
     }else{

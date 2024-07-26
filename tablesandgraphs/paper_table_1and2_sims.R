@@ -75,38 +75,39 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
       
     p1_alpha <- mu_p*rho_p
     p1_beta <- rho_p * (1 - mu_p)
-      
+
     lnRR_mu ~ dnorm(prior_lnRRmu_mu, prior_lnRRmu_tau)
     lnRR_sig ~ dunif(prior_lnRRtau_lo, prior_lnRRtau_hi)
     lnRR_tau <- 1/(lnRR_sig*lnRR_sig)
    
+    p1plus.new ~ dbeta(p1_alpha, p1_beta)
+      
+    theta.new ~ dnorm(lnRR_mu, lnRR_tau)
+    log(RR.new) <- theta.new
+
     # for(i in 1:nexp){
     #   p11[i] <- p1plus[i] * p1plus[i] * RR[i]
     # }
     p11.new <- p1plus.new * p1plus.new * RR.new
-      
+    
     # New Study Data #########
     p12.new <- p1plus.new - p11.new
     p22.new <- 1 - p1plus.new
     psnew[1] <- p11.new
     psnew[2] <- p12.new
     psnew[3] <- p22.new
-    z.new ~ dmulti(ps, n.new)
+    z.new ~ dmulti(psnew, n.new)
 
-    p1plus.new ~ dbeta(p1_alpha, p1_beta)
-      
-    theta.new ~ dnorm(lnRR_mu, lnRR_tau)
-    log(RR.new) <- theta.new
-    
     # Historic Data #########
     for(i in 1:nexp){
-      ps[i,1] <- p11[i]
-      ps[i,2] <- p12[i]
-      ps[i,3] <- p22[i]
-      z[i,1:3] ~ dmulti(ps[i,],n)
       p11[i]<- RR[i]*pow(p1plus[i],2)
 	    p12[i]<- p1plus[i] - RR[i]*pow(p1plus[i],2)
 	    p22[i]<- 1 - p1plus[i]
+	    
+	    ps[i,1] <- p11[i]
+      ps[i,2] <- p12[i]
+      ps[i,3] <- p22[i]
+      z[i,1:3] ~ dmulti(ps[i,1:3],n[i])
 
       theta1[i] ~ dbeta(p1_alpha, p1_beta)
       invRR[i] <- 1/RR[i]
@@ -118,7 +119,7 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
     }
   }
   
-  ", file = "one_samp_zero")
+  ", file = "tbl1and2")
   
   # PARAMETERS AND DATA INIT. ##########################
   
@@ -144,7 +145,7 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
                         "rhop_mean", "rhop_CIlen", "rhop_covr",
                         "RRindivcovr", "RRavgpctbias", "p1indivcovr", "p1avgpctbias",
                         "newRR", "newRRCIlen", 
-                        "newp1", "newp1CIlen", "pi11hat")
+                        "newp1plus", "newp1plusCIlen", "p11hat")
   
   for(i in 1:iter){
     
@@ -165,32 +166,31 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
     # generate counts: 
     z <- matrix(nrow = nexp, ncol = 3)
     #colnames(z) <- colnames(p)
-    for(i in 1:nrow(p)){
-      pi <- p[i,]
+    for(j in 1:nrow(p)){
+      pi <- p[j,]
       
-      z[i,] <- as.numeric(rmultinom(1, n, pi))
+      z[j,] <- as.numeric(rmultinom(1, n, pi))
     }
     
     # Define data for JAGS
     data <- list(n = n, nexp = nexp, z = z, 
-                 n.new = NA, n1.new = NA, n11.new = NA,
+                 n.new = n[1], #n1.new = NA, n11.new = NA,
                  prior_p1mu_alpha = prior_p1mu_alpha, prior_p1mu_beta = prior_p1mu_beta, 
                  prior_p1rho_alpha = prior_p1rho_alpha, prior_p1rho_beta = prior_p1rho_beta,
                  prior_lnRRmu_mu = prior_lnRRmu_mu, prior_lnRRmu_tau = prior_lnRRmu_tau,
                  prior_lnRRtau_lo = prior_lnRRtau_lo, prior_lnRRtau_hi = prior_lnRRtau_hi)
     
     # Compile
-    jm <- jags.model("one_samp_zero", data = data)
+    jm <- jags.model("tbl1and2", data = data)
     
     # Burnin
     samps <- update(jm, 5000)
     
     # iterations
     samps <- coda.samples(jm, variable.names = c("lnRR_mu", "lnRR_sig", "mu_p", 
-                                                 "rho_p", "p1", "RR",
-                                                 "p1.new", "RR.new"),  
+                                                 "rho_p", "p1plus", "RR",
+                                                 "p1plus.new", "RR.new"),  
                           n.iter = 20000)
-    
     if(i == 1){
       total_samps = samps[[1]]
     }else{
@@ -215,7 +215,7 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
     
     # average across studies: 
     studyRRrows <- grep("RR\\[", rownames(stuff$statistics), value = TRUE)
-    studyp1rows <- grep("p1\\[", rownames(stuff$statistics), value = TRUE)
+    studyp1rows <- grep("p1plus\\[", rownames(stuff$statistics), value = TRUE)
     output[i,]$RRindivcovr <- (mean(stuff$quantiles[studyRRrows,5] > exp(lnRRs) & stuff$quantiles[studyRRrows,1] < exp(lnRRs)))
     output[i,]$p1indivcovr <- (mean(stuff$quantiles[studyp1rows, 5] > p1s & stuff$quantiles[studyp1rows, 1] < p1s))
     output[i,]$RRavgpctbias <- mean((stuff$statistics[studyRRrows, 1] - exp(lnRRs))/exp(lnRRs))
@@ -223,12 +223,12 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
     
     # data for the produced prior: 
     output[i,]$newRR <- stuff$statistics["RR.new", 1]
-    output[i,]$newRR2point5 <- stuff$quantiles["RR.new", 1]
-    output[i,]$newRR97point5 <- stuff$quantiles["RR.new", 5]
+    #output[i,]$newRR2point5 <- stuff$quantiles["RR.new", 1]
+    #output[i,]$newRR97point5 <- stuff$quantiles["RR.new", 5]
     output[i,]$newRRCIlen <- stuff$quantiles["RR.new", 5] - stuff$quantiles["RR.new", 1]
-    output[i,]$newp1 <- stuff$statistics["p1.new", 1]
-    output[i,]$newp1CIlen <- stuff$quantiles["p1.new", 5] - stuff$quantiles["p1.new", 1]
-    output[i,]$pi11hat <- sum(n11)/sum(n)
+    output[i,]$newp1plus <- stuff$statistics["p1plus.new", 1]
+    output[i,]$newp1plusCIlen <- stuff$quantiles["p1plus.new", 5] - stuff$quantiles["p1plus.new", 1]
+    output[i,]$p11hat <- sum(z[,1])/sum(n)
   }
   
   avg_samps = total_samps / iter
@@ -242,7 +242,6 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
   }
   return(output)  
 }
-
 
 
 
@@ -286,7 +285,7 @@ for(sdev in RRsds){
     samps <- out[[2]]
     
     nextdat <- data.frame(samps[,"RR.new"],
-                          samps[,"p1.new"])
+                          samps[,"p1plus.new"])
     
     colnames(nextdat) <- c("RR", "p1")
     
@@ -294,7 +293,7 @@ for(sdev in RRsds){
     
     nextdat$sd <- sdev
     nextdat$n <- N
-    nextdat$p11hat <- sum(n11)/(nexp * N)
+    nextdat$p11hat <- samps$p11hat
     nextdat$varhat <- (1 - nextdat$p11hat)/nextdat$p11hat
     
     if(sdev == RRsds[1] & N == Ns[1]){
