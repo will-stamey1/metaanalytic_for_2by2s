@@ -285,6 +285,8 @@ Sys.time() - t0
 nexp <- length(lnRRs)
 
 out$nexp <- nexp
+out$N <- N
+out$sd <- sdev
 
 # ESS: record effective sample size for RR distributions:
 # logRRnew <- log(nextdat$RR)

@@ -1,6 +1,8 @@
 library(dplyr)
 
-matching_files <- list.files(path = "", pattern = "tbl1and2sims_")
+matching_files <- list.files(pattern = "tbl1and2sims_")
+
+print(matching_files)
 
 dfs <- lapply(matching_files, read.csv)
 
