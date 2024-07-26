@@ -1,4 +1,4 @@
-# MAP Sim
+# MAP Sim BINOMIAL
 
 # Load required libraries
 library(rjags)

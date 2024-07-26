@@ -1,4 +1,4 @@
-# MAP Sim
+# MAP Sim Trinomial
 
 # Load required libraries
 library(rjags)
@@ -8,31 +8,20 @@ library(dplyr)
 library(stringr)
 library(RBesT)
 
+# Get args from job file: [n_iter, config id]
+
+theargs <- commandArgs(trailingOnly = TRUE)
+n_iter <- as.numeric(theargs[1])
+cid <- as.numeric(theargs[2])
+
 theme_set(theme_classic())
 
 # Set seed 
 set.seed(1234)
 
-# In these simulations, we will remove noise by holding the data 
-# constant. For increases in standard deviation, the differences 
-# in sampled parameters will be scaled up. 
 
 expit <- function(x){
   exp(x)/(1 + exp(x))
-}
-
-rescale <- function(x, true_mu, newsig = 1){
-  #mu <- mean(x)
-  mu <- true_mu
-  sig <- sd(x)
-  
-  sigmult <- newsig/sig
-  
-  for(i in 1:length(x)){
-    x[i] <- (x[i] - mu) * sigmult + mu
-  }
-  
-  return(x)
 }
 
 
@@ -56,7 +45,7 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
   
   if(length(lnRRs) != length(p1s)){stop("Vectors must be of equal length.")}
   
-  lnRRs <- rescale(lnRRs, true_mu = lnRR_mu, newsig = lnRRsd)
+  #lnRRs <- rescale(lnRRs, true_mu = lnRR_mu, newsig = lnRRsd)
   
   # format n, sample size per experiment: 
   if(length(n) == 1 & nexp > 1){
@@ -253,17 +242,24 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
 # prior_lnRRmu_tau = .01; prior_lnRRtau_lo = 0; prior_lnRRtau_hi = 2
 
 
-# Plot the priors on RR and P1 for the new experiment #############################
+# Get parameters depending on cid ############################
 
-RRsds <- c(0.1)#c(0.05, 0.1, 0.2)
+RRsds <- c(0.05, 0.1, 0.2)
 #RRsds <- c(0.3)
-Ns <- c(100)#c(30, 100, 300)
+Ns <- c(30, 100, 300)
+
+params <- expand.grid(RRsds, Ns)
+sdev <- params[cid,1]
+N <- params[cid, 2]
+
+
+# Generate experiment parameters: 
 
 # overall log RR: 
 lnRRmu <- log(0.7)
 
 nexp <- 10
-lnRRs <- rnorm(nexp, mean = lnRRmu, sd = 1) # Don't change this sd from 1! Change RRsds - it gets rescaled in map_comp_plot
+lnRRs <- rnorm(nexp, mean = lnRRmu, sd = sdev)
 # mu = 0.4, rho = 20
 # 
 p1s <- rbeta(nexp, shape1 = 8, shape2 = 12)
@@ -274,41 +270,28 @@ ess.logRR$ess <- NA
 
 t0 <- Sys.time()
 
-for(sdev in RRsds){
-  for(N in Ns){
-    out <- map_paper_sims(lnRRs = lnRRs, p1s = p1s, n = N, 
-                         lnRRsd = sdev, lnRR_mu = lnRRmu, return_samps = T, iter = 1, 
-                         return_counts = F, p1_true_mu = 0.4, p1_true_rho = 20)
-    
-    nexp <- length(lnRRs)
-    
-    samps <- out[[2]]
-    
-    nextdat <- data.frame(samps[,"RR.new"],
-                          samps[,"p1plus.new"])
-    
-    colnames(nextdat) <- c("RR", "p1")
-    
-    #n11 <- out[[3]]$n11
-    
-    nextdat$sd <- sdev
-    nextdat$n <- N
-    nextdat$p11hat <- samps$p11hat
-    nextdat$varhat <- (1 - nextdat$p11hat)/nextdat$p11hat
-    
-    if(sdev == RRsds[1] & N == Ns[1]){
-      gdat <- nextdat
-    }else{
-      gdat <- bind_rows(gdat, nextdat)
-    }
-    
-    # ESS: record effective sample size for RR distributions:
-    # logRRnew <- log(nextdat$RR)
-    # 
-    # fit <- automixfit(logRRnew, type = "norm")
-    # ess.logRR[ess.logRR[,'n']==N & ess.logRR[,'sd']==sd,'ess'] <- ess(fit, sigma = 1)
-  }
-}
+
+# RUN SIMS ###############################################
+
+out <- map_paper_sims(lnRRs = lnRRs, p1s = p1s, n = N, 
+                     lnRRsd = sdev, lnRR_mu = lnRRmu, return_samps = F, iter = n_iter, 
+                     return_counts = F, p1_true_mu = 0.4, p1_true_rho = 20)
 
 print(Sys.time() - t0)
 Sys.time() - t0
+
+# OUTPUT #####################################################
+
+nexp <- length(lnRRs)
+
+out$nexp <- nexp
+
+# ESS: record effective sample size for RR distributions:
+# logRRnew <- log(nextdat$RR)
+# 
+# fit <- automixfit(logRRnew, type = "norm")
+# ess.logRR[ess.logRR[,'n']==N & ess.logRR[,'sd']==sd,'ess'] <- ess(fit, sigma = 1)
+
+
+write.csv(out, paste0("tbl1and2sims_", as.character(cid), ".csv"))
+
