@@ -247,18 +247,18 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
 RRsds <- c(0.05, 0.1, 0.2)
 #RRsds <- c(0.3)
 Ns <- c(30, 100, 300)
+nexps <- c(5, 10, 20)
 
-params <- expand.grid(RRsds, Ns)
+params <- expand.grid(RRsds, Ns, nexps)
 sdev <- params[cid,1]
 N <- params[cid, 2]
-
+nexp <- params[cid,3]
 
 # Generate experiment parameters: 
 
 # overall log RR: 
 lnRRmu <- log(0.7)
 
-nexp <- 10
 lnRRs <- rnorm(nexp, mean = lnRRmu, sd = sdev)
 # mu = 0.4, rho = 20
 # 
@@ -281,8 +281,6 @@ print(Sys.time() - t0)
 Sys.time() - t0
 
 # OUTPUT #####################################################
-
-nexp <- length(lnRRs)
 
 out$nexp <- nexp
 out$N <- N
