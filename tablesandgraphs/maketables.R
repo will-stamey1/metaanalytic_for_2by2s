@@ -3,7 +3,7 @@
 library(dplyr)
 library(stargazer)
 
-a <- read.csv("tablesandgraphs/table1and2job/tblresults7-26-24.csv")
+a <- read.csv("tablesandgraphs/table1and2job/tblresults7-29-24.csv")
 
 a$lnRRmu_mean %>% exp() %>%  hist()
 
@@ -32,18 +32,20 @@ for(sd in RRsds){
 # Table 1: 
 
 t1 <- 
-  a %>% group_by(sd, N) %>% 
+  a %>% group_by(nexp, sd, N) %>% 
   summarize(
     #mean(exp(lnRRmu_mean)),
-    across(lnRRmu_mean:p1avgpctbias, ~mean(.x)))
+    across(lnRRmu_mean:p1avgpctbias, ~mean(.x))) %>% 
+  arrange(sd, N, nexp)
 
 # Table 2:
 
 t2 <- a %>% 
-  group_by(sd, N) %>% 
+  group_by(nexp, sd, N) %>% 
   summarize(
-    across(newRR:newp1CIlen, ~mean(.x))
-  )
+    across(newRR:newp1plusCIlen, ~mean(.x))
+  ) %>% 
+  arrange(sd, N, nexp) 
 
 
 # Make latex output ###########################################################
