@@ -66,7 +66,8 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
     p1_beta <- rho_p * (1 - mu_p)
 
     lnRR_mu ~ dnorm(prior_lnRRmu_mu, prior_lnRRmu_tau)
-    lnRR_sig ~ dunif(prior_lnRRtau_lo, prior_lnRRtau_hi)
+    #lnRR_sig ~ dunif(prior_lnRRtau_lo, prior_lnRRtau_hi)
+    lnRR_sig ~  dnorm(0, 1) T(0, )
     lnRR_tau <- 1/(lnRR_sig*lnRR_sig)
    
     p1plus.new ~ dbeta(p1_alpha, p1_beta)
