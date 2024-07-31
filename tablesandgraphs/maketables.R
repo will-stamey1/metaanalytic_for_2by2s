@@ -3,7 +3,7 @@
 library(dplyr)
 library(stargazer)
 
-a <- read.csv("tablesandgraphs/table1and2job/tblresults7-29-24.csv")
+a <- read.csv("tablesandgraphs/table1and2job/tblresults7-31-24.csv")
 
 a$lnRRmu_mean %>% exp() %>%  hist()
 
@@ -55,3 +55,10 @@ t1 %>% mutate(across(everything(), ~round(.x,3))) %>%
 
 t2 %>% mutate(across(everything(), ~round(.x,3))) %>% 
   stargazer(type = "latex", header = T, summary = F, vars = colnames(t1), colnames = T)
+
+
+
+# Save tables to csvs #########################################################
+
+write.csv(t1, "t1.csv")
+write.csv(t2, "t2.csv")
