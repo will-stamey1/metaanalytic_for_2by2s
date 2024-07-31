@@ -247,10 +247,12 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
 
 RRsds <- c(0.05, 0.1, 0.2)
 #RRsds <- c(0.3)
-Ns <- c(30, 100, 300)
-nexps <- c(5, 10, 20)
+Ns <- c(30, 100)
+nexps <- c(5, 15, 25)
 
 params <- expand.grid(RRsds, Ns, nexps)
+cid_list <- c(8,9,10)
+cid <- cid_list[cid]
 sdev <- params[cid,1]
 N <- params[cid, 2]
 nexp <- params[cid,3]
