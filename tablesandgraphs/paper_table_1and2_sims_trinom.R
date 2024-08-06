@@ -274,7 +274,7 @@ t0 <- Sys.time()
 
 # RUN SIMS ###############################################
 
-out <- map_paper_sims(n = N, lnRRsd = sdev, lnRR_mu = lnRRmu, return_samps = F, iter = n_iter, 
+out <- map_paper_sims(n = N, lnRRsd = sdev, lnRR_mu = lnRRmu, return_samps = T, iter = n_iter, 
                      return_counts = F, p1_true_mu = 0.4, p1_true_rho = 20)
 
 print(Sys.time() - t0)

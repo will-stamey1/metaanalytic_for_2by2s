@@ -84,7 +84,7 @@ for(i in 1:iter){
   
   
   # iterations
-  samps <- coda.samples(jm, variable.names = c("p1", "RR"),  n.iter = 20000)
+  samps <- coda.samples(jm, variable.names = c("p1", "RR", "mu_p", "rho_p"),  n.iter = 20000)
   
   stuff <- summary(samps)
   
