@@ -29,9 +29,9 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
                            lnRR_mu = log(0.7), p1_true_mu = 0.4, p1_true_rho = 20,
                            iter = 1, return_samps = T, return_counts = T){
   
-  if(is.null(logitp1s) & is.null(p1s)){
-    stop("At least one of logitp1s and p1s must be supplied!")
-  }
+  # if(is.null(logitp1s) & is.null(p1s)){
+  #   stop("At least one of logitp1s and p1s must be supplied!")
+  # }
   
   
   # # generate probabilities for each experiment: # NOW TAKING PLACE INSIDE ITERATOR
@@ -44,13 +44,13 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
   prior_p1rho_alpha = 1; prior_p1rho_beta = .1; prior_lnRRmu_mu = 0; 
   prior_lnRRmu_tau = .01; prior_lnRRtau_lo = 0; prior_lnRRtau_hi = 2;
   
-  nexp <- length(lnRRs)
-  
-  if(is.null(p1s)){
-    p1s <- expit(logitp1s)
-  }
-  
-  if(length(lnRRs) != length(p1s)){stop("Vectors must be of equal length.")}
+  # nexp <- length(lnRRs)
+  # 
+  # if(is.null(p1s)){
+  #   p1s <- expit(logitp1s)
+  # }
+  # 
+  # if(length(lnRRs) != length(p1s)){stop("Vectors must be of equal length.")}
   
   #lnRRs <- rescale(lnRRs, true_mu = lnRR_mu, newsig = lnRRsd)
   
@@ -58,10 +58,10 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
   if(length(n) == 1 & nexp > 1){
     n <- rep(n, nexp) # make a vector with a value for each
   }else if(length(n) != nexp){
-    stop("Length of n must be 1 or equal to nexp.")
+     stop("Length of n must be 1 or equal to nexp.")
   }
   
-  #  JAGS model
+  # JAGS model
   cat(" 
   model {
    
@@ -104,7 +104,7 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
 
       theta1[i] ~ dbeta(p1_alpha, p1_beta)
       invRR[i] <- 1/RR[i]
-      upbound[i] <- 1 #min(1, invRR[i]) # TESTING TESTING TESTING CHANGE BACK LATER
+      upbound[i] <- min(1, invRR[i]) # TESTING TESTING TESTING CHANGE BACK LATER
       p1plus[i] <- theta1[i] * upbound[i] 
       
       log(RR[i]) <- theta[i]
