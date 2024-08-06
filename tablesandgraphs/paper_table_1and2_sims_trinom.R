@@ -14,7 +14,7 @@ theargs <- commandArgs(trailingOnly = TRUE)
 n_iter <- as.numeric(theargs[1])
 cid <- as.numeric(theargs[2])
 
-theme_set(theme_classic())
+theme_set(theme_classic())  
 
 # Set seed 
 set.seed(1234)
@@ -32,6 +32,13 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
   if(is.null(logitp1s) & is.null(p1s)){
     stop("At least one of logitp1s and p1s must be supplied!")
   }
+  
+  rrs <- exp(lnRRs)
+  
+  # generate probabilities for each experiment: 
+  p11 <- rrs*p1s^2
+  p12 <- p1s - rrs*p1s^2
+  p22 <- 1 - p1s
   
   prior_p1mu_alpha = 1; prior_p1mu_beta = 1; 
   prior_p1rho_alpha = 1; prior_p1rho_beta = .1; prior_lnRRmu_mu = 0; 
@@ -62,11 +69,11 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
     mu_p ~ dbeta(prior_p1mu_alpha, prior_p1mu_beta)
     rho_p ~ dgamma(prior_p1rho_alpha, prior_p1rho_beta)
       
-    p1_alpha <- mu_p*rho_p
+    p1_alpha <- mu_p * rho_p
     p1_beta <- rho_p * (1 - mu_p)
 
     lnRR_mu ~ dnorm(prior_lnRRmu_mu, prior_lnRRmu_tau)
-    lnRR_sig ~ dunif(prior_lnRRtau_lo, prior_lnRRtau_hi)
+    lnRR_sig ~ dnorm(0, 1) T(0, ) # dunif(prior_lnRRtau_lo, prior_lnRRtau_hi)
     lnRR_tau <- 1/(lnRR_sig*lnRR_sig)
    
     p1plus.new ~ dbeta(p1_alpha, p1_beta)
@@ -74,9 +81,6 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
     theta.new ~ dnorm(lnRR_mu, lnRR_tau)
     log(RR.new) <- theta.new
 
-    # for(i in 1:nexp){
-    #   p11[i] <- p1plus[i] * p1plus[i] * RR[i]
-    # }
     p11.new <- p1plus.new * p1plus.new * RR.new
     
     # New Study Data #########
@@ -101,7 +105,7 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
       theta1[i] ~ dbeta(p1_alpha, p1_beta)
       invRR[i] <- 1/RR[i]
       upbound[i] <- min(1, invRR[i])
-      p1plus[i] <- theta1[i] * upbound[i]
+      p1plus[i] <- theta1[i] * upbound[i] 
       
       log(RR[i]) <- theta[i]
       theta[i] ~ dnorm(lnRR_mu, lnRR_tau)
@@ -141,14 +145,8 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
     # Generate data: 
     #n1 <- rbinom(nexp, n, prob = p1s)
     #n11 <- rbinom(nexp, n1, prob = (p1s * exp(lnRRs))) 
-    rrs <- exp(lnRRs)
     # p1s <- pmin(p1s, 1/rrs) # this seems like it would lead to bunching at 1/rr. Maybe this doesnt matter. 
-    p1s <- p1s * pmin(1, 1/rrs) # TRYING THIS OUT: 
-    
-    # generate probabilities for each experiment: 
-    p11 <- rrs*p1s^2
-    p12 <- p1s - rrs*p1s^2
-    p22 <- 1 - p1s
+    #p1s <- p1s * pmin(1, 1/rrs) # TRYING THIS OUT: 
     
     p <- cbind(p11, p12, p22)
     
@@ -225,9 +223,9 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
   if(return_samps & ! return_counts){
     output <- list(output, avg_samps)
   }else if(!return_samps & return_counts){
-    output <- list(output, list("n1" = n1, "n11" = n11))
+    output <- list(output, list("z" = z))
   }else if(return_samps & return_counts){
-    output <- list(output, avg_samps, list("n1" = n1, "n11" = n11))
+    output <- list(output, avg_samps, list("z" = z))
   }
   return(output)  
 }
@@ -263,6 +261,7 @@ lnRRs <- rnorm(nexp, mean = lnRRmu, sd = sdev)
 # mu = 0.4, rho = 20
 # 
 p1s <- rbeta(nexp, shape1 = 8, shape2 = 12)
+p1s <- p1s * pmin(1, 1/exp(lnRRs))
 
 ess.logRR <- expand.grid(RRsds, Ns)
 colnames(ess.logRR) <- c('sd', 'n')
