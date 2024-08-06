@@ -3,7 +3,7 @@
 library(dplyr)
 library(stargazer)
 
-a <- read.csv("tablesandgraphs/table1and2job/tblresults7-26-24_2.csv")
+a <- read.csv("tablesandgraphs/table1and2job/tblresults7-31-24.csv")
 
 a$lnRRmu_mean %>% exp() %>%  hist()
 
@@ -32,18 +32,20 @@ a$lnRRsd_covr %>% mean()
 # Table 1: 
 
 t1 <- 
-  a %>% group_by(sd, N) %>% 
+  a %>% group_by(nexp, sd, N) %>% 
   summarize(
     #mean(exp(lnRRmu_mean)),
-    across(lnRRmu_mean:p1avgpctbias, ~mean(.x)))
+    across(lnRRmu_mean:p1avgpctbias, ~mean(.x))) %>% 
+  arrange(sd, N, nexp)
 
 # Table 2:
 
 t2 <- a %>% 
-  group_by(sd, N) %>% 
+  group_by(nexp, sd, N) %>% 
   summarize(
     across(newRR:newp1plusCIlen, ~mean(.x))
-  )
+  ) %>% 
+  arrange(sd, N, nexp) 
 
 
 # Make latex output ###########################################################
@@ -65,3 +67,7 @@ a %>% filter(sd == 0.1) %>%
   mutate(N = factor(N)) %>% 
   ggplot(aes(x = rhop_mean)) +
   geom_histogram(group = N, fill = N)
+# Save tables to csvs #########################################################
+
+write.csv(t1, "t1.csv")
+write.csv(t2, "t2.csv")
