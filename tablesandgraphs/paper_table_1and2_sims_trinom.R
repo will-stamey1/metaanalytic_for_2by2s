@@ -33,12 +33,12 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
     stop("At least one of logitp1s and p1s must be supplied!")
   }
   
-  rrs <- exp(lnRRs)
   
-  # generate probabilities for each experiment: 
-  p11 <- rrs*p1s^2
-  p12 <- p1s - rrs*p1s^2
-  p22 <- 1 - p1s
+  # # generate probabilities for each experiment: # NOW TAKING PLACE INSIDE ITERATOR
+  # rrs <- exp(lnRRs)
+  # p11 <- rrs*p1s^2
+  # p12 <- p1s - rrs*p1s^2
+  # p22 <- 1 - p1s
   
   prior_p1mu_alpha = 1; prior_p1mu_beta = 1; 
   prior_p1rho_alpha = 1; prior_p1rho_beta = .1; prior_lnRRmu_mu = 0; 
@@ -104,7 +104,7 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
 
       theta1[i] ~ dbeta(p1_alpha, p1_beta)
       invRR[i] <- 1/RR[i]
-      upbound[i] <- min(1, invRR[i])
+      upbound[i] <- 1 #min(1, invRR[i]) # TESTING TESTING TESTING CHANGE BACK LATER
       p1plus[i] <- theta1[i] * upbound[i] 
       
       log(RR[i]) <- theta[i]
@@ -143,10 +143,18 @@ map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1,
   for(i in 1:iter){
     
     # Generate data: 
-    #n1 <- rbinom(nexp, n, prob = p1s)
-    #n11 <- rbinom(nexp, n1, prob = (p1s * exp(lnRRs))) 
+    lnRRs <- rnorm(nexp, mean = lnRR_mu, sd = lnRRsd)
+    rrs <- exp(lnRRs)
+    
+    # mu = 0.4, rho = 20
+    p1s <- rbeta(nexp, shape1 = 8, shape2 = 12)
     # p1s <- pmin(p1s, 1/rrs) # this seems like it would lead to bunching at 1/rr. Maybe this doesnt matter. 
-    #p1s <- p1s * pmin(1, 1/rrs) # TRYING THIS OUT: 
+    p1s <- p1s * pmin(1, 1/rrs) # TRYING THIS OUT: 
+    
+    # generate probabilities for each experiment: 
+    p11 <- rrs*p1s^2
+    p12 <- p1s - rrs*p1s^2
+    p22 <- 1 - p1s
     
     p <- cbind(p11, p12, p22)
     
@@ -248,8 +256,6 @@ Ns <- c(30, 100)
 nexps <- c(5, 15, 25)
 
 params <- expand.grid(RRsds, Ns, nexps)
-cid_list <- c(8,9,10)
-cid <- cid_list[cid]
 sdev <- params[cid,1]
 N <- params[cid, 2]
 nexp <- params[cid,3]
@@ -258,12 +264,6 @@ nexp <- params[cid,3]
 
 # overall log RR: 
 lnRRmu <- log(0.7)
-
-lnRRs <- rnorm(nexp, mean = lnRRmu, sd = sdev)
-# mu = 0.4, rho = 20
-# 
-p1s <- rbeta(nexp, shape1 = 8, shape2 = 12)
-p1s <- p1s * pmin(1, 1/exp(lnRRs))
 
 ess.logRR <- expand.grid(RRsds, Ns)
 colnames(ess.logRR) <- c('sd', 'n')
@@ -274,8 +274,7 @@ t0 <- Sys.time()
 
 # RUN SIMS ###############################################
 
-out <- map_paper_sims(lnRRs = lnRRs, p1s = p1s, n = N, 
-                     lnRRsd = sdev, lnRR_mu = lnRRmu, return_samps = F, iter = n_iter, 
+out <- map_paper_sims(n = N, lnRRsd = sdev, lnRR_mu = lnRRmu, return_samps = T, iter = n_iter, 
                      return_counts = F, p1_true_mu = 0.4, p1_true_rho = 20)
 
 print(Sys.time() - t0)
