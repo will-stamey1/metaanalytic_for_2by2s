@@ -25,8 +25,8 @@ expit <- function(x){
 }
 
 
-map_paper_sims <- function(lnRRs, logitp1s = NULL, p1s = NULL, n, lnRRsd = 1, 
-                           lnRR_mu = log(0.7), p1_true_mu = 0.4, p1_true_rho = 20,
+map_paper_sims <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4, 
+                           p1_true_rho = 20,
                            iter = 1, return_samps = T, return_counts = T){
   
   # if(is.null(logitp1s) & is.null(p1s)){
@@ -274,7 +274,7 @@ t0 <- Sys.time()
 
 # RUN SIMS ###############################################
 
-out <- map_paper_sims(n = N, lnRRsd = sdev, lnRR_mu = lnRRmu, return_samps = T, iter = n_iter, 
+out <- map_paper_sims(n = N, lnRRsd = sdev, lnRR_mu = lnRRmu, return_samps = F, iter = n_iter, 
                      return_counts = F, p1_true_mu = 0.4, p1_true_rho = 20)
 
 print(Sys.time() - t0)
