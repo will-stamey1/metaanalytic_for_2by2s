@@ -93,6 +93,14 @@ map_paper_sims <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4,
 
     # Historic Data #########
     for(i in 1:nexp){
+      theta[i] ~ dnorm(lnRR_mu, lnRR_tau)
+      log(RR[i]) <- theta[i]
+
+      invRR[i] <- 1/RR[i]
+      upbound[i] <- min(1, invRR[i]) 
+      theta1[i] ~ dbeta(p1_alpha, p1_beta)
+      p1plus[i] <- theta1[i] * upbound[i]
+
       p11[i]<- RR[i]*pow(p1plus[i],2)
 	    p12[i]<- p1plus[i] - RR[i]*pow(p1plus[i],2)
 	    p22[i]<- 1 - p1plus[i]
@@ -101,14 +109,6 @@ map_paper_sims <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4,
       ps[i,2] <- p12[i]
       ps[i,3] <- p22[i]
       z[i,1:3] ~ dmulti(ps[i,1:3],n[i])
-
-      theta1[i] ~ dbeta(p1_alpha, p1_beta)
-      invRR[i] <- 1/RR[i]
-      upbound[i] <- min(1, invRR[i]) 
-      p1plus[i] <- theta1[i] * upbound[i] 
-      
-      log(RR[i]) <- theta[i]
-      theta[i] ~ dnorm(lnRR_mu, lnRR_tau)
     }
   }
   
@@ -146,8 +146,10 @@ map_paper_sims <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4,
     lnRRs <- rnorm(nexp, mean = lnRR_mu, sd = lnRRsd)
     rrs <- exp(lnRRs)
     
-    # mu = 0.4, rho = 20
-    p1s <- rbeta(nexp, shape1 = 8, shape2 = 12)
+    p1_alpha_true <- p1_true_mu * p1_true_rho
+    p1_beta_true <- p1_true_rho * (1 - p1_true_mu)
+    
+    p1s <- rbeta(nexp, shape1 = p1_alpha_true, shape2 = p1_beta_true)
     # p1s <- pmin(p1s, 1/rrs) # this seems like it would lead to bunching at 1/rr. Maybe this doesnt matter. 
     p1s <- p1s * pmin(1, 1/rrs) # TRYING THIS OUT: 
     
@@ -263,7 +265,7 @@ nexp <- params[cid,3]
 # Generate experiment parameters: 
 
 # overall log RR: 
-lnRRmu <- log(0.7)
+lnRRmu <- log(1.2)
 
 ess.logRR <- expand.grid(RRsds, Ns)
 colnames(ess.logRR) <- c('sd', 'n')

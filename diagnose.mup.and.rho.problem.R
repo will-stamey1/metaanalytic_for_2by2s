@@ -66,7 +66,7 @@ model {
   lnRR_sig ~ dnorm(0, 1) T(0, ) # dunif(prior_lnRRtau_lo, prior_lnRRtau_hi)
   lnRR_tau <- 1/(lnRR_sig*lnRR_sig)
  
-  p1plus.new ~ dbeta(p1_alpha, p1_beta)
+  p1plus.new ~ dbeta(p1_alpha, p1_beta) 
     
   theta.new ~ dnorm(lnRR_mu, lnRR_tau)
   log(RR.new) <- theta.new
