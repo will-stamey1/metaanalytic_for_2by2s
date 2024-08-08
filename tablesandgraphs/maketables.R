@@ -3,9 +3,9 @@
 library(dplyr)
 library(stargazer)
 
-a <- read.csv("tablesandgraphs/table1and2job/tblresults8-6-24.csv")
+a <- read.csv("tablesandgraphs/table1and2job/tblresults8-7-24.csv")
 
-a$lnRRmu_mean %>% exp() %>%  hist()
+a$lnRRmu_mean %>% exp() %>% hist()
 
 mean(exp(a$lnRRmu_mean))
 
