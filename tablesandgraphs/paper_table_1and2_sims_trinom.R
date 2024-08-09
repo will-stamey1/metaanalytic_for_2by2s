@@ -26,7 +26,7 @@ expit <- function(x){
 
 
 map_paper_sims <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4, 
-                           p1_true_rho = 20,
+                           p1_true_rho = 20, nexp = 10,
                            iter = 1, return_samps = T, return_counts = T){
   
   # if(is.null(logitp1s) & is.null(p1s)){
@@ -252,20 +252,19 @@ map_paper_sims <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4,
 
 # Get parameters depending on cid ############################
 
-RRsds <- c(0.05, 0.1, 0.2)
+RRsds <- c(0.075, 0.15)
 #RRsds <- c(0.3)
 Ns <- c(30, 100)
-nexps <- c(5, 15, 25)
+nexps <- c(5, 25)
+lnRRmus <- c(log(0.7), log(1.2))
 
-params <- expand.grid(RRsds, Ns, nexps)
+params <- expand.grid(RRsds, Ns, nexps, lnRRmus)
 sdev <- params[cid,1]
-N <- params[cid, 2]
+N <- params[cid,2]
 nexp <- params[cid,3]
 
-# Generate experiment parameters: 
-
 # overall log RR: 
-lnRRmu <- log(1.2)
+lnRRmu <- params[cid,4] # log(0.7)
 
 ess.logRR <- expand.grid(RRsds, Ns)
 colnames(ess.logRR) <- c('sd', 'n')
@@ -277,7 +276,7 @@ t0 <- Sys.time()
 # RUN SIMS ###############################################
 
 out <- map_paper_sims(n = N, lnRRsd = sdev, lnRR_mu = lnRRmu, return_samps = F, iter = n_iter, 
-                     return_counts = F, p1_true_mu = 0.4, p1_true_rho = 20)
+                     nexp = nexp, return_counts = F, p1_true_mu = 0.4, p1_true_rho = 20)
 
 print(Sys.time() - t0)
 Sys.time() - t0
