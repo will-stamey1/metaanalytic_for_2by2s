@@ -2,6 +2,7 @@
 
 library(dplyr)
 library(stargazer)
+library(tidyr)
 
 a <- read.csv("tablesandgraphs/table1and2job/tblresults8-09-24.csv")
 
@@ -22,25 +23,30 @@ a[is.na(a["lnRRmu"]),]$lnRRmu <- -0.3566749
 # Table 1: 
 
 t1 <- 
-  a %>% group_by(nexp, sd, N, lnRRmu) %>% 
+  a %>% group_by(nexp, sd, N, exp(lnRRmu)) %>% 
   summarize(
     #mean(exp(lnRRmu_mean)),
     across(lnRRmu_mean:p1avgpctbias, ~mean(.x))) %>% 
-  arrange(sd, N, nexp)
+  arrange(sd, nexp, N, `exp(lnRRmu)`) %>% 
+  relocate(nexp, N, sd)
 
 # Table 2:
 
 t2 <- a %>% 
-  group_by(nexp, sd, N, lnRRmu) %>% 
+  group_by(nexp, sd, N, exp(lnRRmu)) %>% 
   summarize(
     across(newRR:newp1plusCIlen, ~mean(.x))
   ) %>% 
-  arrange(sd, N, nexp) 
+  arrange(sd, nexp, N, `exp(lnRRmu)`) %>% 
+  relocate(nexp, N, sd)
+
 
 
 # Make latex output ###########################################################
 
 t1 %>% mutate(across(everything(), ~round(.x,3))) %>% 
+  #pivot_longer(cols = lnRRmu_mean:p1avgpctbias) %>% 
+  arrange(`exp(lnRRmu)`) %>% 
   stargazer(type = "latex", header = T, summary = F, vars = colnames(t1), colnames = T)
 
 t2 %>% mutate(across(everything(), ~round(.x,3))) %>% 
