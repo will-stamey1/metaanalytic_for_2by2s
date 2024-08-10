@@ -4,7 +4,7 @@
 # #$ -m abe
 #$ -q long
 #$ -N meta2x2t1n2
-#$ -t 1-16
+#$ -t 1-8
 
 n_iter="1000"
 

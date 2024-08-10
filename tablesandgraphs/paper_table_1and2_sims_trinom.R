@@ -256,7 +256,7 @@ RRsds <- c(0.075, 0.15)
 #RRsds <- c(0.3)
 Ns <- c(30, 100)
 nexps <- c(5, 25)
-lnRRmus <- c(log(0.7), log(1.2))
+lnRRmus <- c(log(0.55))
 
 params <- expand.grid(RRsds, Ns, nexps, lnRRmus)
 sdev <- params[cid,1]
