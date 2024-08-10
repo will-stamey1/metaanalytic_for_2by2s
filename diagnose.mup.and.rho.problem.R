@@ -31,8 +31,8 @@ RRsds <- c(0.05, 0.1, 0.2)
 Ns <- c(30, 100)
 nexps <- c(5, 15, 25)
 
-n = Ns[1] # number of samples per experiment
-lnRRsd = RRsds[3] # true lnRR sd 
+n = Ns[2] # number of samples per experiment
+lnRRsd = RRsds[1] # true lnRR sd 
 nexp <- nexps[3]
 lnRR_mu = log(0.7) # true lnRR mu
 p1_true_mu = 0.4
