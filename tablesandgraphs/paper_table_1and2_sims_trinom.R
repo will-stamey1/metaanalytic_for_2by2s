@@ -73,7 +73,7 @@ map_paper_sims <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4,
     p1_beta <- rho_p * (1 - mu_p)
 
     lnRR_mu ~ dnorm(prior_lnRRmu_mu, prior_lnRRmu_tau)
-    lnRR_sig ~ dnorm(0, 1) T(0, ) # dunif(prior_lnRRtau_lo, prior_lnRRtau_hi)
+    lnRR_sig ~ dnorm(0, 4) T(0, ) # dunif(prior_lnRRtau_lo, prior_lnRRtau_hi)
     lnRR_tau <- 1/(lnRR_sig*lnRR_sig)
    
     p1plus.new ~ dbeta(p1_alpha, p1_beta)
@@ -256,7 +256,7 @@ RRsds <- c(0.075, 0.15)
 #RRsds <- c(0.3)
 Ns <- c(30, 100)
 nexps <- c(5, 25)
-lnRRmus <- c(log(0.55))
+lnRRmus <- c(log(0.7), log(1.2))
 
 params <- expand.grid(RRsds, Ns, nexps, lnRRmus)
 sdev <- params[cid,1]

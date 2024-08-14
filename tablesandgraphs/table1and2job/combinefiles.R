@@ -12,4 +12,4 @@ dfs <- lapply(matching_files, read.csv)
 
 fulldf <- bind_rows(dfs)
 
-write.csv(fulldf, "tblresults8-09-24_.55.csv")
+write.csv(fulldf, "tblresults8-14-24.csv")
