@@ -7,6 +7,7 @@ library(ggplot2)
 library(dplyr)
 library(stringr)
 library(RBesT)
+library(coda)
 
 # Get args from job file: [n_iter, config id]
 
@@ -26,40 +27,30 @@ expit <- function(x){
 
 
 map_paper_sims <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4, 
-                           p1_true_rho = 20, nexp = 10,
-                           iter = 1, return_samps = T, return_counts = T){
+                           p1_true_rho = 20, nexp = 10, iter = 1, 
+                           return_samps = T, return_counts = T, random_n = F){
   
-  # if(is.null(logitp1s) & is.null(p1s)){
-  #   stop("At least one of logitp1s and p1s must be supplied!")
-  # }
+  if(random_n){ # if using "random_n" then 'n' specifies a range of possible values (A and B in the uniform distribution) rather than the set of ns. Rename for disambiguation in the code. 
+    nrange <- n
+  }
   
-  
-  # # generate probabilities for each experiment: # NOW TAKING PLACE INSIDE ITERATOR
-  # rrs <- exp(lnRRs)
-  # p11 <- rrs*p1s^2
-  # p12 <- p1s - rrs*p1s^2
-  # p22 <- 1 - p1s
+  if(random_n){
+    if(length(n)!=2){
+      stop("If using random_n, must provide a list of length 2 specifying the upper and lower bounds of n's uniform distribution. ")
+    }
+  }else{ # using fixed, provided ns for each experiment: 
+    # format n, sample size per experiment: 
+    if(length(n) == 1 & nexp > 1){
+      n <- rep(n, nexp) # make a vector with a value for each
+    }else if(length(n) != nexp){
+      stop("Length of n must be 1 or equal to nexp.")
+    }
+  }
   
   prior_p1mu_alpha = 1; prior_p1mu_beta = 1; 
   prior_p1rho_alpha = 1; prior_p1rho_beta = .1; prior_lnRRmu_mu = 0; 
   prior_lnRRmu_tau = .01; prior_lnRRtau_lo = 0; prior_lnRRtau_hi = 2;
   
-  # nexp <- length(lnRRs)
-  # 
-  # if(is.null(p1s)){
-  #   p1s <- expit(logitp1s)
-  # }
-  # 
-  # if(length(lnRRs) != length(p1s)){stop("Vectors must be of equal length.")}
-  
-  #lnRRs <- rescale(lnRRs, true_mu = lnRR_mu, newsig = lnRRsd)
-  
-  # format n, sample size per experiment: 
-  if(length(n) == 1 & nexp > 1){
-    n <- rep(n, nexp) # make a vector with a value for each
-  }else if(length(n) != nexp){
-     stop("Length of n must be 1 or equal to nexp.")
-  }
   
   # JAGS model
   cat(" 
@@ -131,16 +122,22 @@ map_paper_sims <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4,
   # 12. rhop_covr: coverage of p1 rho true value. . 
   # 13. RRindivcovr: coverage rate for experiment RR means
   # 14. p1indivcovr: coverage rate for experiment p1 means
-  output <- data.frame(matrix(NA, iter, 21))
-  colnames(output) <- c("lnRRmu_mean", "lnRRmu_CIlen", "lnRRmu_covr", 
+  output <- data.frame(matrix(data = NA, iter, 24))
+  colnames(output) <- c("gelmanrubin", "lnRRmu_mean", "lnRRmu_CIlen", "lnRRmu_covr", 
                         "lnRRsd_mean", "lnRRsd_CIlen", "lnRRsd_covr",
                         "mup_mean", "mup_CIlen", "mup_covr", 
                         "rhop_mean", "rhop_CIlen", "rhop_covr",
-                        "RRindivcovr", "RRavgpctbias", "p1indivcovr", "p1avgpctbias",
+                        "RRindivCIlen", "RRindivcovr", "RRavgpctbias", 
+                        "p1indivCIlen", "p1indivcovr", "p1avgpctbias",
                         "newRR", "newRRCIlen", 
                         "newp1plus", "newp1plusCIlen", "p11hat")
   
   for(i in 1:iter){
+    
+    # if using random_n, generate the sample sizes for each table/experiment:
+    if(random_n){
+      n <- round(runif(n = nexp+1, min = nrange[[1]], max = nrange[[2]]))
+    }
     
     # Generate data: 
     lnRRs <- rnorm(nexp, mean = lnRR_mu, sd = lnRRsd)
@@ -166,19 +163,19 @@ map_paper_sims <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4,
     for(j in 1:nrow(p)){
       pi <- p[j,]
       
-      z[j,] <- as.numeric(rmultinom(1, n, pi))
+      z[j,] <- as.numeric(rmultinom(1, n[j], pi))
     }
     
     # Define data for JAGS
-    data <- list(n = n, nexp = nexp, z = z, 
-                 n.new = n[1], #n1.new = NA, n11.new = NA,
+    data <- list(n = n[1:nexp], 
+                 nexp = nexp, z = z, 
+                 n.new = n[nexp+1], #n1.new = NA, n11.new = NA,
                  prior_p1mu_alpha = prior_p1mu_alpha, prior_p1mu_beta = prior_p1mu_beta, 
                  prior_p1rho_alpha = prior_p1rho_alpha, prior_p1rho_beta = prior_p1rho_beta,
-                 prior_lnRRmu_mu = prior_lnRRmu_mu, prior_lnRRmu_tau = prior_lnRRmu_tau,
-                 prior_lnRRtau_lo = prior_lnRRtau_lo, prior_lnRRtau_hi = prior_lnRRtau_hi)
+                 prior_lnRRmu_mu = prior_lnRRmu_mu, prior_lnRRmu_tau = prior_lnRRmu_tau)
     
     # Compile
-    jm <- jags.model("tbl1and2", data = data)
+    jm <- jags.model("tbl1and2", data = data, n.chains = 2)
     
     # Burnin
     samps <- update(jm, 5000)
@@ -188,6 +185,13 @@ map_paper_sims <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4,
                                                  "rho_p", "p1plus", "RR",
                                                  "p1plus.new", "RR.new"),  
                           n.iter = 20000)
+    
+    # gelman rubin diagnostic: 
+    gelman_diag <- gelman.diag(samps)
+
+    # get and save multivariate psrf to summarize the convergence success: 
+    output[i, ]$gelmanrubin <- gelman_diag$mpsrf
+    
     if(i == 1){
       total_samps = samps[[1]]
     }else{
@@ -213,6 +217,8 @@ map_paper_sims <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4,
     # average across studies: 
     studyRRrows <- grep("RR\\[", rownames(stuff$statistics), value = TRUE)
     studyp1rows <- grep("p1plus\\[", rownames(stuff$statistics), value = TRUE)
+    output[i,]$RRindivCIlen <- mean(stuff$quantiles[studyRRrows, 5] - stuff$quantiles[studyRRrows, 1])
+    output[i,]$p1indivCIlen <- mean(stuff$quantiles[studyp1rows, 5] - stuff$quantiles[studyp1rows, 1])
     output[i,]$RRindivcovr <- (mean(stuff$quantiles[studyRRrows,5] > exp(lnRRs) & stuff$quantiles[studyRRrows,1] < exp(lnRRs)))
     output[i,]$p1indivcovr <- (mean(stuff$quantiles[studyp1rows, 5] > p1s & stuff$quantiles[studyp1rows, 1] < p1s))
     output[i,]$RRavgpctbias <- mean((stuff$statistics[studyRRrows, 1] - exp(lnRRs))/exp(lnRRs))
@@ -254,13 +260,13 @@ map_paper_sims <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4,
 
 RRsds <- c(0.075, 0.15)
 #RRsds <- c(0.3)
-Ns <- c(30, 100)
+Ns <- list(list(5, 50), list(50, 100))
 nexps <- c(5, 25)
 lnRRmus <- c(log(0.7), log(1.2))
 
 params <- expand.grid(RRsds, Ns, nexps, lnRRmus)
 sdev <- params[cid,1]
-N <- params[cid,2]
+N <- params[cid,2][[1]]
 nexp <- params[cid,3]
 
 # overall log RR: 
@@ -276,7 +282,8 @@ t0 <- Sys.time()
 # RUN SIMS ###############################################
 
 out <- map_paper_sims(n = N, lnRRsd = sdev, lnRR_mu = lnRRmu, return_samps = F, iter = n_iter, 
-                     nexp = nexp, return_counts = F, p1_true_mu = 0.4, p1_true_rho = 20)
+                     nexp = nexp, return_counts = F, p1_true_mu = 0.4, p1_true_rho = 20,
+                     random_n = T)
 
 print(Sys.time() - t0)
 Sys.time() - t0
@@ -284,7 +291,7 @@ Sys.time() - t0
 # OUTPUT #####################################################
 
 out$nexp <- nexp
-out$N <- N
+out$N <- list(N)
 out$sd <- sdev
 out$lnRRmu <- lnRRmu
 
