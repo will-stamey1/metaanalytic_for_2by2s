@@ -4,7 +4,7 @@ library(dplyr)
 library(stargazer)
 library(tidyr)
 
-a <- read.csv("tablesandgraphs/table1and2job/tblresults8-14-24_unifsdprior.csv")
+a <- read.csv("tablesandgraphs/table1and2job/tblresults9-12-24.csv")
 #a <- read.csv("tablesandgraphs/table1and2job/tblresults8-09-24_.55.csv")
 
 # FORGOT TO ADD LABELS FOR lnRRmu, ADD MANUALLY:
