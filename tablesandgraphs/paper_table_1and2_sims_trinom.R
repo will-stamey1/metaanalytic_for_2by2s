@@ -291,7 +291,7 @@ Sys.time() - t0
 # OUTPUT #####################################################
 
 out$nexp <- nexp
-out$N <- list(N)
+out$N <- as.character(list(N))
 out$sd <- sdev
 out$lnRRmu <- lnRRmu
 
