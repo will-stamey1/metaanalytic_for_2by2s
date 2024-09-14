@@ -260,7 +260,7 @@ map_paper_sims <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4,
 
 RRsds <- c(0.075, 0.15)
 #RRsds <- c(0.3)
-Ns <- list(list(5, 50), list(50, 100))
+Ns <- list(list(50, 100), list(100, 200))
 nexps <- c(5, 25)
 lnRRmus <- c(log(0.7), log(1.2))
 
