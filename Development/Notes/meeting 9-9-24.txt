@@ -1,0 +1,8 @@
+- run simulations where each table has a different sample size, generated from a uniform distribution.
+
+- rerun already done simulations but also track gelman rubin diagnostic
+		- request two chains rather than 1 (look up how to do this in JAGS)
+		- also add interval widths to table 3
+
+- make a step-by-step application of the method
+

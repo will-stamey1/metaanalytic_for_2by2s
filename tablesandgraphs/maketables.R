@@ -4,7 +4,7 @@ library(dplyr)
 library(stargazer)
 library(tidyr)
 
-a <- read.csv("tablesandgraphs/table1and2job/tblresults9-12-24.csv")
+a <- read.csv("tablesandgraphs/table1and2job/tblresults9-15-24.csv")
 #a <- read.csv("tablesandgraphs/table1and2job/tblresults8-09-24_.55.csv")
 
 # FORGOT TO ADD LABELS FOR lnRRmu, ADD MANUALLY:
@@ -82,16 +82,19 @@ t1 %>%
 # table 3
 t1 %>%
   select(contains("exp(lnRRmu)") | (!contains("lnRRmu") & !contains("lnRRsd"))) %>% 
-  select(c(1:4, 11:14)) %>% 
+  select(c(1:4, 11:16)) %>% 
   relocate(sd, nexp, N) %>% 
   mutate(across(everything(), ~round(.x,3))) %>% 
   #pivot_longer(cols = lnRRmu_mean:p1avgpctbias) %>% 
   arrange(`exp(lnRRmu)`) %>% 
+  relocate(RRindivCIlen, .after = RRavgpctbias) %>% 
+  relocate(p1indivCIlen, .after = p1avgpctbias) %>% 
   stargazer(type = "latex", header = T, summary = F, vars = colnames(t1), colnames = T)
 
 
 
 t2 %>% mutate(across(everything(), ~round(.x,3))) %>% 
+  relocate(sd) %>% 
   stargazer(type = "latex", header = T, summary = F, vars = colnames(t1), colnames = T)
 
 
