@@ -15,46 +15,94 @@ library(stringr)
 library(RBesT)
 library(coda)
 
-# Get args from job file: [n_iter, config id]
-
-theargs <- commandArgs(trailingOnly = TRUE)
-n_iter <- as.numeric(theargs[1])
-cid <- as.numeric(theargs[2])
-
 theme_set(theme_classic())  
-
-# Set seed 
-set.seed(1234)
-
 
 expit <- function(x){
   exp(x)/(1 + exp(x))
 }
 
-hm2x2prior <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4, 
-                           p1_true_rho = 20, 
-                           return_samps = T, return_counts = T){
+make_history_param_obj <- function(real_data = FALSE, dataset = NULL, 
+                           prior_lnRRmu_mu = log(1), prior_lnRRmu_tau = 1, 
+                           prior_lnRRtau_lo = 0, prior_lnRRtau_hi = 1,
+                           prior_p1mu_alpha = 1, prior_p1mu_beta = 1,
+                           prior_p1rho_alpha = 1, prior_p1rho_beta = 0.1,
+                           lnRR_true_mu = log(0.7), lnRR_true_sd = 1, 
+                           p1_true_mu = 0.4, p1_true_rho = 20,
+                           nexp = 10, n_lo = 100, n_hi = 200, fixed_n = NULL
+                           ){
+  # This function builds a named list of parameters which can then be supplied 
+  # to hm2x2prior in order to inform the run. These parameters include the prior 
+  # values, as well as the "true" values of the parameters in the case that a  
+  # real dataset will not be supplied and the data will be simulated. 
+  # 
+  # TODO: define all of the function inputs and figure out how to make a help 
+  # document that R studio can open with "?".
   
-  if(random_n){ # if using "random_n" then 'n' specifies a range of possible values (A and B in the uniform distribution) rather than the set of ns. Rename for disambiguation in the code. 
-    nrange <- n
+  if(real_data == TRUE){
+    
+    lnRR_true_mu = NULL; lnRR_true_sd = NULL; p1_true_mu = NULL; p1_true_rho = NULL
+    
+    if(is.null(data)){
+    # TODO: make this stop statement more specific, specifying the desired form 
+    # of the data. 
+      stop("Must supply a dataset. ")
+    }
   }
   
-  if(random_n){
-    if(length(n)!=2){
-      stop("If using random_n, must provide a list of length 2 specifying the upper and lower bounds of n's uniform distribution. ")
-    }
-  }else{ # using fixed, provided ns for each experiment: 
+  # TODO: make it so that this function can include historic data in the named 
+  # list and check that the data is in the correct format. 
+  
+  thelist <- list(prior_lnRRmu_mu = prior_lnRRmu_mu, prior_lnRRmu_tau = prior_lnRRmu_tau, 
+                  prior_lnRRtau_lo = prior_lnRRtau_lo, prior_lnRRtau_hi = prior_lnRRtau_hi,
+                  prior_p1mu_alpha = prior_p1mu_alpha, prior_p1mu_beta = prior_p1mu_beta,
+                  prior_p1rho_alpha = prior_p1rho_alpha, prior_p1rho_beta = prior_p1rho_beta,
+                  lnRR_true_mu = lnRR_true_mu, lnRR_true_sd = lnRR_true_sd, 
+                  p1_true_mu = p1_true_mu, p1_true_rho = p1_true_rho,
+                  nexp = nexp, n_lo = 100, n_hi = 200, fixed_n = NULL, data = dataset
+  )
+  
+  return(thelist)
+}
+
+make_new_experiment_obj <- function(data = NULL, n = 50, lnRR_new = log(1.2), p1_new = 0.4){
+  # TODO: incorporate submission of real data
+  
+  thelist <- list(data=data, n = n, lnRR_new = lnRR_new, p1_new = p1_new)
+  
+  return(thelist)
+}
+
+hm2x2prior <- function(history_object, return_samps = T, return_counts = T){
+  
+  # rename history_object "po" for convenience: 
+  po <- history_object
+  # neo <- new_experiment_object
+  
+  # unpack the history parameters: 
+  prior_lnRRmu_mu <- po$prior_lnRRmu_mu; prior_lnRRmu_tau <- po$prior_lnRRmu_tau
+  prior_lnRRtau_lo <- po$prior_lnRRtau_lo; prior_lnRRtau_hi <- po$prior_lnRRtau_hi
+  prior_p1mu_alpha <- po$prior_p1mu_alpha; prior_p1mu_beta <- po$prior_p1mu_beta
+  prior_p1rho_alpha <- po$prior_p1rho_alpha; prior_p1rho_beta <- po$prior_p1rho_beta
+  lnRR_true_mu <- po$lnRR_true_mu; lnRR_true_sd <- po$lnRR_true_sd; 
+  p1_true_mu <- po$p1_true_mu; p1_true_rho <- po$p1_true_rho; nexp <- po$nexp
+  n_lo <- po$n_lo; n_hi <- po$n_hi; fixed_n <- po$fixed_n; data <- po$data
+  
+  # unpack new experiment object: 
+  # new_data <- neo$data
+  new_n <- 100 # new_n <- neo$n
+  # new_lnRR <- neo$lnRR_new
+  # new_p1 <- neo$p1_new
+  
+  if(!is.null(fixed_n)){
     # format n, sample size per experiment: 
     if(length(n) == 1 & nexp > 1){
       n <- rep(n, nexp) # make a vector with a value for each
     }else if(length(n) != nexp){
       stop("Length of n must be 1 or equal to nexp.")
     }
+  }else{ # if using random n, generate the sample sizes for each table/experiment:
+    n <- round(runif(n = nexp+1, min = n_lo, max = n_hi))
   }
-  
-  prior_p1mu_alpha = 1; prior_p1mu_beta = 1; 
-  prior_p1rho_alpha = 1; prior_p1rho_beta = .1; prior_lnRRmu_mu = 0; 
-  prior_lnRRmu_tau = .01; prior_lnRRtau_lo = 0; prior_lnRRtau_hi = 2;
   
   
   # JAGS model
@@ -97,7 +145,7 @@ hm2x2prior <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4,
       theta1[i] ~ dbeta(p1_alpha, p1_beta)
       p1plus[i] <- theta1[i] * upbound[i]
 
-      p11[i]<- RR[i]*pow(p1plus[i],2)
+      p11[i]<- RR[i]*pow(p1plus[i],2) 
 	    p12[i]<- p1plus[i] - RR[i]*pow(p1plus[i],2)
 	    p22[i]<- 1 - p1plus[i]
 	    
@@ -127,7 +175,7 @@ hm2x2prior <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4,
   # 12. rhop_covr: coverage of p1 rho true value. . 
   # 13. RRindivcovr: coverage rate for experiment RR means
   # 14. p1indivcovr: coverage rate for experiment p1 means
-  output <- data.frame(matrix(data = NA, iter, 24))
+  output <- data.frame(matrix(data = NA, 1, 24))
   colnames(output) <- c("gelmanrubin", "lnRRmu_mean", "lnRRmu_CIlen", "lnRRmu_covr", 
                         "lnRRsd_mean", "lnRRsd_CIlen", "lnRRsd_covr",
                         "mup_mean", "mup_CIlen", "mup_covr", 
@@ -137,15 +185,10 @@ hm2x2prior <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4,
                         "newRR", "newRRCIlen", 
                         "newp1plus", "newp1plusCIlen", "p11hat")
   
-  for(i in 1:iter){
-    
-    # if using random_n, generate the sample sizes for each table/experiment:
-    if(random_n){
-      n <- round(runif(n = nexp+1, min = nrange[[1]], max = nrange[[2]]))
-    }
-    
+  # if data is simulated: 
+  if(is.null(data)){
     # Generate data: 
-    lnRRs <- rnorm(nexp, mean = lnRR_mu, sd = lnRRsd)
+    lnRRs <- rnorm(nexp, mean = lnRR_true_mu, sd = lnRR_true_sd)
     rrs <- exp(lnRRs)
     
     p1_alpha_true <- p1_true_mu * p1_true_rho
@@ -170,83 +213,78 @@ hm2x2prior <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4,
       
       z[j,] <- as.numeric(rmultinom(1, n[j], pi))
     }
-    
-    # Define data for JAGS
-    data <- list(n = n[1:nexp], 
-                 nexp = nexp, z = z, 
-                 n.new = n[nexp+1], #n1.new = NA, n11.new = NA,
-                 prior_p1mu_alpha = prior_p1mu_alpha, prior_p1mu_beta = prior_p1mu_beta, 
-                 prior_p1rho_alpha = prior_p1rho_alpha, prior_p1rho_beta = prior_p1rho_beta,
-                 prior_lnRRmu_mu = prior_lnRRmu_mu, prior_lnRRmu_tau = prior_lnRRmu_tau)
-    
-    # Compile
-    jm <- jags.model("tbl1and2", data = data, n.chains = 2)
-    
-    # Burnin
-    samps <- update(jm, 5000)
-    
-    # iterations
-    samps <- coda.samples(jm, variable.names = c("lnRR_mu", "lnRR_sig", "mu_p", 
-                                                 "rho_p", "p1plus", "RR",
-                                                 "p1plus.new", "RR.new"),  
-                          n.iter = 20000)
-    
-    # gelman rubin diagnostic: 
-    gelman_diag <- gelman.diag(samps)
-
-    # get and save multivariate psrf to summarize the convergence success: 
-    output[i, ]$gelmanrubin <- gelman_diag$mpsrf
-    
-    if(i == 1){
-      total_samps = samps[[1]]
-    }else{
-      total_samps = total_samps + samps[[1]]
-    }
-    
-    stuff <- summary(samps)
-    
-    # core parameter results:
-    output[i,]$lnRRmu_mean <- stuff$statistics["lnRR_mu",1]
-    output[i,]$lnRRmu_CIlen <- stuff$quantiles["lnRR_mu",5] - stuff$quantiles["lnRR_mu",1]
-    output[i,]$lnRRmu_covr <- stuff$quantiles["lnRR_mu",5] > lnRR_mu & stuff$quantiles["lnRR_mu",1] < lnRR_mu
-    output[i,]$lnRRsd_mean <- stuff$statistics["lnRR_sig",1]
-    output[i,]$lnRRsd_CIlen <- stuff$quantiles["lnRR_sig",5] - stuff$quantiles["lnRR_sig",1]
-    output[i,]$lnRRsd_covr <- stuff$quantiles["lnRR_sig",5] > lnRRsd & stuff$quantiles["lnRR_sig",1] < lnRRsd
-    output[i,]$mup_mean <- stuff$statistics["mu_p",1]
-    output[i,]$mup_CIlen <- stuff$quantiles["mu_p",5] - stuff$quantiles["mu_p",1]
-    output[i,]$mup_covr <- stuff$quantiles["mu_p",5] > p1_true_mu & stuff$quantiles["mu_p",1] < p1_true_mu
-    output[i,]$rhop_mean <- stuff$statistics["rho_p",1]
-    output[i,]$rhop_CIlen <- stuff$quantiles["rho_p",5] - stuff$quantiles["rho_p",1]
-    output[i,]$rhop_covr <- stuff$quantiles["rho_p",5] > p1_true_rho & stuff$quantiles["rho_p",1] < p1_true_rho
-    
-    # average across studies: 
-    studyRRrows <- grep("RR\\[", rownames(stuff$statistics), value = TRUE)
-    studyp1rows <- grep("p1plus\\[", rownames(stuff$statistics), value = TRUE)
-    output[i,]$RRindivCIlen <- mean(stuff$quantiles[studyRRrows, 5] - stuff$quantiles[studyRRrows, 1])
-    output[i,]$p1indivCIlen <- mean(stuff$quantiles[studyp1rows, 5] - stuff$quantiles[studyp1rows, 1])
-    output[i,]$RRindivcovr <- (mean(stuff$quantiles[studyRRrows,5] > exp(lnRRs) & stuff$quantiles[studyRRrows,1] < exp(lnRRs)))
-    output[i,]$p1indivcovr <- (mean(stuff$quantiles[studyp1rows, 5] > p1s & stuff$quantiles[studyp1rows, 1] < p1s))
-    output[i,]$RRavgpctbias <- mean((stuff$statistics[studyRRrows, 1] - exp(lnRRs))/exp(lnRRs))
-    output[i,]$p1avgpctbias <- mean((stuff$statistics[studyp1rows, 1] - p1s)/p1s)
-    
-    # data for the produced prior: 
-    output[i,]$newRR <- stuff$statistics["RR.new", 1]
-    #output[i,]$newRR2point5 <- stuff$quantiles["RR.new", 1]
-    #output[i,]$newRR97point5 <- stuff$quantiles["RR.new", 5]
-    output[i,]$newRRCIlen <- stuff$quantiles["RR.new", 5] - stuff$quantiles["RR.new", 1]
-    output[i,]$newp1plus <- stuff$statistics["p1plus.new", 1]
-    output[i,]$newp1plusCIlen <- stuff$quantiles["p1plus.new", 5] - stuff$quantiles["p1plus.new", 1]
-    output[i,]$p11hat <- sum(z[,1])/sum(n)
   }
   
-  avg_samps = total_samps / iter
+  # Define data for JAGS
+  data <- list(n = n, 
+               nexp = nexp, z = z, 
+               n.new = new_n, #n1.new = NA, n11.new = NA,
+               prior_p1mu_alpha = prior_p1mu_alpha, prior_p1mu_beta = prior_p1mu_beta, 
+               prior_p1rho_alpha = prior_p1rho_alpha, prior_p1rho_beta = prior_p1rho_beta,
+               prior_lnRRmu_mu = prior_lnRRmu_mu, prior_lnRRmu_tau = prior_lnRRmu_tau)
+  
+  # Compile
+  jm <- jags.model("tbl1and2", data = data, n.chains = 2)
+  
+  # Burnin
+  samps <- update(jm, 5000)
+  
+  # iterations
+  samps <- coda.samples(jm, variable.names = c("lnRR_mu", "lnRR_sig", "mu_p", 
+                                               "rho_p", "p1plus", "RR",
+                                               "p1plus.new", "RR.new"),  
+                        n.iter = 20000)
+  
+  # gelman rubin diagnostic: 
+  gelman_diag <- gelman.diag(samps)
+
+  # get and save multivariate psrf to summarize the convergence success: 
+  output$gelmanrubin <- gelman_diag$mpsrf
+  
+  
+  total_samps = samps[[1]]
+  
+  stuff <- summary(samps)
+  
+  # core parameter results:
+  output$lnRRmu_mean <- stuff$statistics["lnRR_mu",1]
+  output$lnRRmu_CIlen <- stuff$quantiles["lnRR_mu",5] - stuff$quantiles["lnRR_mu",1]
+  output$lnRRmu_covr <- stuff$quantiles["lnRR_mu",5] > lnRR_true_mu & stuff$quantiles["lnRR_mu",1] < lnRR_true_mu
+  output$lnRRsd_mean <- stuff$statistics["lnRR_sig",1]
+  output$lnRRsd_CIlen <- stuff$quantiles["lnRR_sig",5] - stuff$quantiles["lnRR_sig",1]
+  output$lnRRsd_covr <- stuff$quantiles["lnRR_sig",5] > lnRR_true_sd & stuff$quantiles["lnRR_sig",1] < lnRR_true_sd
+  output$mup_mean <- stuff$statistics["mu_p",1]
+  output$mup_CIlen <- stuff$quantiles["mu_p",5] - stuff$quantiles["mu_p",1]
+  output$mup_covr <- stuff$quantiles["mu_p",5] > p1_true_mu & stuff$quantiles["mu_p",1] < p1_true_mu
+  output$rhop_mean <- stuff$statistics["rho_p",1]
+  output$rhop_CIlen <- stuff$quantiles["rho_p",5] - stuff$quantiles["rho_p",1]
+  output$rhop_covr <- stuff$quantiles["rho_p",5] > p1_true_rho & stuff$quantiles["rho_p",1] < p1_true_rho
+  
+  # average across studies: 
+  studyRRrows <- grep("RR\\[", rownames(stuff$statistics), value = TRUE)
+  studyp1rows <- grep("p1plus\\[", rownames(stuff$statistics), value = TRUE)
+  output$RRindivCIlen <- mean(stuff$quantiles[studyRRrows, 5] - stuff$quantiles[studyRRrows, 1])
+  output$p1indivCIlen <- mean(stuff$quantiles[studyp1rows, 5] - stuff$quantiles[studyp1rows, 1])
+  output$RRindivcovr <- (mean(stuff$quantiles[studyRRrows,5] > exp(lnRRs) & stuff$quantiles[studyRRrows,1] < exp(lnRRs)))
+  output$p1indivcovr <- (mean(stuff$quantiles[studyp1rows, 5] > p1s & stuff$quantiles[studyp1rows, 1] < p1s))
+  output$RRavgpctbias <- mean((stuff$statistics[studyRRrows, 1] - exp(lnRRs))/exp(lnRRs))
+  output$p1avgpctbias <- mean((stuff$statistics[studyp1rows, 1] - p1s)/p1s)
+  
+  # data for the produced prior: 
+  output$newRR <- stuff$statistics["RR.new", 1]
+  #output$newRR2point5 <- stuff$quantiles["RR.new", 1]
+  #output$newRR97point5 <- stuff$quantiles["RR.new", 5]
+  output$newRRCIlen <- stuff$quantiles["RR.new", 5] - stuff$quantiles["RR.new", 1]
+  output$newp1plus <- stuff$statistics["p1plus.new", 1]
+  output$newp1plusCIlen <- stuff$quantiles["p1plus.new", 5] - stuff$quantiles["p1plus.new", 1]
+  output$p11hat <- sum(z[,1])/sum(n)
   
   if(return_samps & ! return_counts){
-    output <- list(output, avg_samps)
+    output <- list(output, total_samps)
   }else if(!return_samps & return_counts){
     output <- list(output, list("z" = z))
   }else if(return_samps & return_counts){
-    output <- list(output, avg_samps, list("z" = z))
+    output <- list(output, total_samps, list("z" = z))
   }
   return(output)  
 }

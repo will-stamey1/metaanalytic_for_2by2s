@@ -132,6 +132,8 @@ map_paper_sims <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4,
                         "newRR", "newRRCIlen", 
                         "newp1plus", "newp1plusCIlen", "p11hat")
   
+  psrfs <- list()
+  
   for(i in 1:iter){
     
     # if using random_n, generate the sample sizes for each table/experiment:
@@ -189,6 +191,8 @@ map_paper_sims <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4,
     # gelman rubin diagnostic: 
     gelman_diag <- gelman.diag(samps)
 
+    psrfs <- c(psrfs, gelman_diag)
+    
     # get and save multivariate psrf to summarize the convergence success: 
     output[i, ]$gelmanrubin <- gelman_diag$mpsrf
     
@@ -236,6 +240,21 @@ map_paper_sims <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4,
   
   avg_samps = total_samps / iter
   
+  mean_multipsrf <- 0
+  for(i in 1:length(psrfs)){
+    if(i%%2 == 1){
+      if(i==1){
+        mean_psrf <- psrfs[[i]]
+      }else{
+        mean_psrf <- mean_psrf + psrfs[[i]]
+      }
+    }else{
+      mean_multipsrf <- mean_multipsrf + psrfs[[i]]
+    }
+  }
+  mean_psrf <- mean_psrf / length(psrfs) * 2
+  mean_multipsrf <- mean_multipsrf / length(psrfs) * 2
+  
   if(return_samps & ! return_counts){
     output <- list(output, avg_samps)
   }else if(!return_samps & return_counts){
@@ -243,7 +262,7 @@ map_paper_sims <- function(n, lnRRsd = 1, lnRR_mu = log(0.7), p1_true_mu = 0.4,
   }else if(return_samps & return_counts){
     output <- list(output, avg_samps, list("z" = z))
   }
-  return(output)  
+  return(list(output, mean_psrf, mean_multipsrf))
 }
 
 
@@ -290,10 +309,20 @@ Sys.time() - t0
 
 # OUTPUT #####################################################
 
-out$nexp <- nexp
-out$N <- as.character(list(N))
-out$sd <- sdev
-out$lnRRmu <- lnRRmu
+out[[1]]$nexp <- nexp
+out[[1]]$N <- as.character(list(N))
+out[[1]]$sd <- sdev
+out[[1]]$lnRRmu <- lnRRmu
+
+# make separate dataframe for gelman-rubin info: 
+gr_frame <- data.frame(out[[2]])
+gr_frame <- rbind(gr_frame, c(out[[3]], NA))
+rownames(gr_frame)[17] <- "multipsrf"
+
+gr_frame$nexp <- nexp
+gr_frame$N <- as.character(list(N))
+gr_frame$sd <- sdev
+gr_frame$lnRRmu <- lnRRmu
 
 # ESS: record effective sample size for RR distributions:
 # logRRnew <- log(nextdat$RR)
@@ -302,5 +331,6 @@ out$lnRRmu <- lnRRmu
 # ess.logRR[ess.logRR[,'n']==N & ess.logRR[,'sd']==sd,'ess'] <- ess(fit, sigma = 1)
 
 
-write.csv(out, paste0("tbl1and2sims_", as.character(cid), ".csv"))
+write.csv(out[[1]], paste0("tbl1and2sims_", as.character(cid), ".csv"))
+write.csv(gr_frame, paste0("gelrub_", as.character(cid), ".csv"))
 
